@@ -4,29 +4,32 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int lfs_getattr( const char *, struct stat * );
-int lfs_readdir( const char *, void *, fuse_fill_dir_t, off_t, struct fuse_file_info * );
-int lfs_open( const char *, struct fuse_file_info * );
-int lfs_read( const char *, char *, size_t, off_t, struct fuse_file_info * );
-int lfs_release(const char *path, struct fuse_file_info *fi);
+int fs_getattr( const char *, struct stat * );
+int fs_readdir( const char *, void *, fuse_fill_dir_t, off_t, struct fuse_file_info * );
+int fs_open( const char *, struct fuse_file_info * );
+int fs_read( const char *, char *, size_t, off_t, struct fuse_file_info * );
+int fs_release(const char *path, struct fuse_file_info *fi);
+int fs_write( const char *, const char *, size_t, off_t, struct fuse_file_info *);
+int fs_mkdir(const char *, mode_t);
+int fs_rmdir(const char *, mode_t);
+int fs_rename(const char *, const char *, unsigned int flags);
+int fs_utime(const char *, const struct timespec tv[2], struct fuse_file_info *fi)
 
 static struct fuse_operations lfs_oper = {
-	.getattr	= lfs_getattr,
-	.readdir	= lfs_readdir,
-	.mknod = NULL,
-	.mkdir = NULL,
-	.unlink = NULL,
-	.rmdir = NULL,
-	.truncate = NULL,
-	.open	= lfs_open,
-	.read	= lfs_read,
-	.release = lfs_release,
-	.write = NULL,
-	.rename = NULL,
-	.utime = NULL
+	.getattr	= fs_getattr,
+	.readdir	= fs_readdir,
+	.mkdir = fs_mkdir,
+	.rmdir = fs_rmdir,
+	.truncate = fs_truncate,
+	.open	= fs_open,
+	.read	= fs_read,
+	.release = fs_release, //closes a file
+	.write = fs_write,
+	.rename = fs_rename,
+	.utime = fs_utime     //maybe should use uitemns (used to update access and modification of file)
 };
 
-int lfs_getattr( const char *path, struct stat *stbuf ) {
+int fs_getattr( const char *path, struct stat *stbuf ) {
 	int res = 0;
 	printf("getattr: (path=%s)\n", path);
 
@@ -44,7 +47,7 @@ int lfs_getattr( const char *path, struct stat *stbuf ) {
 	return res;
 }
 
-int lfs_readdir( const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi ) {
+int fs_readdir( const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi ) {
 	(void) offset;
 	(void) fi;
 	printf("readdir: (path=%s)\n", path);
@@ -65,24 +68,42 @@ int lfs_readdir( const char *path, void *buf, fuse_fill_dir_t filler, off_t offs
 }
 
 //Permission
-int lfs_open( const char *path, struct fuse_file_info *fi ) {
+int fs_open( const char *path, struct fuse_file_info *fi ) {
     printf("open: (path=%s)\n", path);
 	return 0;
 }
 
-int lfs_read( const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi ) {
+int fs_read( const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi ) {
     printf("read: (path=%s)\n", path);
 	memcpy( buf, "Hello\n", 6 );
 	return 6;
 }
 
-int lfs_release(const char *path, struct fuse_file_info *fi) {
+int fs_write( const char *path, const char *buf, size_t size, off_t offset, struct fuse_file_info *fi){
+  return 0;
+}
+
+int fs_release(const char *path, struct fuse_file_info *fi) {
 	printf("release: (path=%s)\n", path);
 	return 0;
 }
 
+int fs_mkdir(const char *, mode_t){
+  return 0;
+}
+int fs_rmdir(const char *, mode_t){
+  return 0;
+}
+int fs_rename(const char *, const char *, unsigned int flags){
+  return 0;
+}
+
+int fs_utime(const char *, const struct timespec tv[2], struct fuse_file_info *fi){
+  return 0;
+}
+
 int main( int argc, char *argv[] ) {
-	fuse_main( argc, argv, &lfs_oper );
+	fuse_main( argc, argv, &lfs_oper ); // Mounts the file system, at the mountpoint given
 
 	return 0;
 }
