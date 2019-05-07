@@ -8,12 +8,13 @@ int fs_getattr( const char *, struct stat * );
 int fs_readdir( const char *, void *, fuse_fill_dir_t, off_t, struct fuse_file_info * );
 int fs_open( const char *, struct fuse_file_info * );
 int fs_read( const char *, char *, size_t, off_t, struct fuse_file_info * );
-int fs_release(const char *path, struct fuse_file_info *fi);
+int fs_release(const char *path, struct fuse_file_info *);
 int fs_write( const char *, const char *, size_t, off_t, struct fuse_file_info *);
 int fs_mkdir(const char *, mode_t);
 int fs_rmdir(const char *, mode_t);
 int fs_rename(const char *, const char *, unsigned int flags);
-int fs_utime(const char *, const struct timespec tv[2], struct fuse_file_info *fi)
+int fs_utime(const char *, const struct timespec tv[2], struct fuse_file_info *);
+int fs_truncate(const char *, off_t, struct fuse_file_info *);
 
 static struct fuse_operations lfs_oper = {
 	.getattr	= fs_getattr,
@@ -26,7 +27,7 @@ static struct fuse_operations lfs_oper = {
 	.release = fs_release, //closes a file
 	.write = fs_write,
 	.rename = fs_rename,
-	.utime = fs_utime     //maybe should use uitemns (used to update access and modification of file)
+	.utime = fs_utime,     //maybe should use uitemns (used to update access and modification of file)
 };
 
 int fs_getattr( const char *path, struct stat *stbuf ) {
@@ -88,19 +89,24 @@ int fs_release(const char *path, struct fuse_file_info *fi) {
 	return 0;
 }
 
-int fs_mkdir(const char *, mode_t){
+int fs_mkdir(const char *path , mode_t mode){
   return 0;
 }
-int fs_rmdir(const char *, mode_t){
+int fs_rmdir(const char *path, mode_t mode){
   return 0;
 }
-int fs_rename(const char *, const char *, unsigned int flags){
+int fs_rename(const char *oldpath, const char *newpath, unsigned int flags){
   return 0;
 }
 
-int fs_utime(const char *, const struct timespec tv[2], struct fuse_file_info *fi){
+int fs_utime(const char *path, const struct timespec tv[2], struct fuse_file_info *fi){
   return 0;
 }
+
+int fs_truncate(const char *path, off_t size, struct fuse_file_info *fi){
+  return 0;
+}
+
 
 int main( int argc, char *argv[] ) {
 	fuse_main( argc, argv, &lfs_oper ); // Mounts the file system, at the mountpoint given
