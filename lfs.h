@@ -40,30 +40,30 @@ static struct fuse_operations lfs_oper = {
 //		hej/
 //			file1.c
 
-struct inode_table{
-	inode max_inodes[30];
-	int free_inodes;
+struct disk_block{
+	struct disk_block *next;
+	char* data; // blocksize -4 for the next block pointer
 };
 
 struct inode{
   ino_t inode_no;
-	inode *parent;
-	inode *next_inode;
   size_t size;
   time_t atime;     //access time
-  time_t mtime      //modification time
-	disk_block* start;
-	disk_block* end;
-  char *name;
-	int file_type; // 0 if file, 1 if dir
-} ;
-
-struct disk_block{
-	disk_block *next;
-	char* data; // blocksize -4 for the next block pointer
+  time_t mtime;      //modification time
+	struct disk_block* start;
+	struct disk_block* end;
 };
 
-struct free_block_count{
-	int first_free_block; // first free block number
-	int nfree; // free continues blocks
+struct inode_page{ // fills out a block of memory (48*10+16)
+  struct inode inodes[10];
+  int next_page; // use block number here
+};
+
+struct volume_control{
+  int blocks;
+  int free_blocks;
+  int block_size;
+  int free_block;
+	int inode_block;
+	int max_file_entries;
 };

@@ -1,0 +1,5 @@
+Memory management: Indexed allocation
+Free space management: Free blocks list
+Directory implementation: Linked list tree. Nodes are linked lists of files/directories.
+Block size: 512 bytes
+Blocks: aprox. 20000 (Decided later)
