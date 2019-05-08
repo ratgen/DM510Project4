@@ -28,7 +28,8 @@ struct dirnode{
 };
 
 struct inode_page{ // fills out a block of memory (48*10+16)
-  struct inode inodes[10];
+  struct inode inodes[5];
+	int free_ids;
   int next_page; // use block number here
 };
 
@@ -47,6 +48,7 @@ int main(){
   printf("The size of struct dirnode is: %d\n", size_dir);
   printf("The size of struct inode is: %d\n", size_inode);
   printf("The size of struct table inode is: %d\n", size_table_inode);
+
 
   return 0;
 }

@@ -1,8 +1,9 @@
 #include "lfs.h"
+#include "dir.h"
 
-int init_volume(int nblocks, int nblock_size, int max_entries, )
+int init_volume(int nblocks, int nblock_size, int max_entries)
 {
-	struct volume_control disk = malloc(sizeof(struct disk));
+	struct volume_control *disk = malloc(sizeof(struct volume_control));
 	if (!disk)
 	{
 		return -ENOMEM;
@@ -29,10 +30,15 @@ int writeblock(void* buf, int block_id, size_t size)
 		return -EINVAL;
 	}
 
-	FILE* fp = open(DISKNAME, "w+b");
+	FILE* fp = fopen(DISKNAME, "w+b");
 	int offset = 512*block_id;
 
-	if(fwrite(buf, 1, size, fseek(fp, offset, SEEK_SET)) < size){
+	if (fseek(fp, offset, SEEK_SET) < 0)
+	{
+		return -EAGAIN;
+	}
+
+	if(fwrite(buf, 1, size, fp) < size){
 		return -EAGAIN;
 	}
 	return size;
@@ -49,9 +55,14 @@ int readblock(void* buf, int block_id, size_t size)
 	{
 		return -EINVAL;
 	}
-	FILE* fp = open(DISKNAME, "r+b");
+	FILE *fp = fopen(DISKNAME, "r+b");
 	int offset = 512*block_id;
-  if(fread(buf, size, 1, fseek(fp, offset, SEEK_SET)) < size)//fseek positions the stream
+	if (fseek(fp, offset, SEEK_SET) < 0)
+	{
+		return -EAGAIN;
+	}
+
+  if(fread(buf, size, 1, fp) < size)//fseek positions the stream
   {
     return -EAGAIN;
   }
@@ -76,7 +87,7 @@ ino_t get_inode_id(struct volume_control *table)
   readblock(temp_inode_page, table->inode_block, INODE_PAGE_SIZE);
 
 	while(temp_inode_page->free_ids == 0){ // if empty, look for next table
-		if (temp_inode_page->next_page == NULL){
+		if (temp_inode_page->next_page == 0){
 			free(temp_inode_page);
 			return -ENOMEM;
 		}
@@ -90,7 +101,7 @@ ino_t get_inode_id(struct volume_control *table)
 	struct inode inode_check;
 
 	for (size_t i = 0; i < 10; i++) {
-		inode_check = temp_inode_page[i];
+		inode_check = temp_inode_page->inodes[i];
 		if (inode_check.inode_no == lowest_inode_id)
 		{
 			lowest_inode_id++;
@@ -163,55 +174,10 @@ int fs_read(const char *path,
             off_t offset,
             struct fuse_file_info *fi )
 {
-  FILE *fp = fopen(DISKNAME, "rb");
-  if(!fp)
-  {
-    //the opening has failed
-  }
-
-  int rp;
-  disk_block *in = malloc(sizeof(disk_block)); //change name
-  while(size > blocksize){
-    if(fread(in, 512, 1, fseek(fp, offset, SEEK_SET)) != 512)//fseek positions the stream
-    {
-      -EAGAIN; //maybew should be something else
-    }
-		memcpy(buf + rp, in->data, 508);
-    size = size - 508;
-    offset = in->next;
-  }
   //should return num of bytes read (the number requsted on success)
 	return 0;
 }
 
-void update_free_blocks(free_block_count *first_free, FILE* disk)
-{
-	int nblock = 0;
-	while (&disk+(nblock*512) != NULL)
-	{
-		nblock++;
-	}
-	first_free->first_free_block;
-}
-
-int *get_free_block(free_block_count *first_free, FILE* disk)
-{
-	if (first_free->first_free_block == NULL)
-	{
-		return -10;
-	}
-	int free_block = first_free->first_free_block;
-	free_block->nfree--;
-	if (first_free->nfree == 0) // there are no more blocks
-	{
-		update_free_blocks(first_free, disk);
-	}
-	else
-	{
-		first_free->first_free_block+1; // there are continues blocks left
-	}
-	return free_block;
-}
 
 int fs_write( const char *path,
 							const char *buf,
@@ -252,6 +218,7 @@ int fs_truncate(const char *path, off_t size, struct fuse_file_info *fi){
 
 
 int main( int argc, char *argv[] ) {
+	init_volume(20480, 512, 30);
 	fuse_main( argc, argv, &lfs_oper ); // Mounts the file system, at the mountpoint given
 
 	return 0;
