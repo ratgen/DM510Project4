@@ -1,18 +1,67 @@
 #include "lfs.h"
 
-int readblock(int block_id) // reads 512 bytes from disk
+int init_volume(int nblocks, int nblock_size, int max_entries, )
 {
-	char buffer[512];
+	struct volume_control disk = malloc(sizeof(struct disk));
+	if (!disk)
+	{
+		return -ENOMEM;
+	}
+	disk->blocks =nblocks;
+	disk->block_size = nblock_size;
+  disk->max_file_entries = max_entries;
+
+}
+
+int writeblock(void* buf, int block_id, size_t size)
+// writes `size` bytes from `buf` to `block_id` file block
+{
+	if (size < 0 || size > 512)
+	{
+		return -EINVAL;
+	}
+	if (buf == NULL)
+	{
+		return -EINVAL;
+	}
+	if (block_id < 0)
+	{
+		return -EINVAL;
+	}
+
+	FILE* fp = open(DISKNAME, "w+b");
 	int offset = 512*block_id;
-  if(fread(buffer, 512, 1, fseek(fp, offset, SEEK_SET)) != 512)//fseek positions the stream
+
+	if(fwrite(buf, 1, size, fseek(fp, offset, SEEK_SET)) < size){
+		return -EAGAIN;
+	}
+	return size;
+}
+
+int readblock(void* buf, int block_id, size_t size)
+// reads `size` bytes from disk into `buf`
+{
+	if (size < 0 || size > 512)
+	{
+		return -EINVAL;
+	}
+  if (block_id < 0)
+	{
+		return -EINVAL;
+	}
+	FILE* fp = open(DISKNAME, "r+b");
+	int offset = 512*block_id;
+  if(fread(buf, size, 1, fseek(fp, offset, SEEK_SET)) < size)//fseek positions the stream
   {
-    -EAGAIN;
+    return -EAGAIN;
   }
-	return buffer;
+	return size;
 }
 /*
-	lowest_inode_id = 14+1
-	inode_ids : 1 2 3 4 5 6 7 8 9 10 11 12 13 14  16 17 18 19 20 21 22 23 24 25 26 27 28 29 30
+	lowest_inode_id = 25+1
+	inode_ids p1 : 1  2  3  4  5  6  7  8  9  10 | free_ids : 0 | next_page = p2
+	inode_ids p2 : 11 12 13 14 15 16 17 18 19 20 | free_ids : 0 | next_page = p3
+	inode_ids p3 : 21 22 23 24 25    27 28 29 30 | free_ids : 1 | next_page = NULL
 */
 
 ino_t get_inode_id(struct volume_control *table)
@@ -23,17 +72,33 @@ ino_t get_inode_id(struct volume_control *table)
 	{
 		return -ENOMEM;
 	}
-	temp_inode_page = readblock(table->inode_block);
+
+  readblock(temp_inode_page, table->inode_block, INODE_PAGE_SIZE);
+
+	while(temp_inode_page->free_ids == 0){ // if empty, look for next table
+		if (temp_inode_page->next_page == NULL){
+			free(temp_inode_page);
+			return -ENOMEM;
+		}
+		else
+		{
+			lowest_inode_id += 10;
+			readblock(temp_inode_page, temp_inode_page->next_page, INODE_PAGE_SIZE);
+		}
+	}
+
 	struct inode inode_check;
 
 	for (size_t i = 0; i < 10; i++) {
-		inode_check = temp_inode_page->inodes[i];
-		if (lowest_inode_id == inode_check.inode_no)
+		inode_check = temp_inode_page[i];
+		if (inode_check.inode_no == lowest_inode_id)
 		{
 			lowest_inode_id++;
 		}
 	}
-  lowest_inode_id++;
+	lowest_inode_id++;
+	free(temp_inode_page);
+	return lowest_inode_id;
 }
 
 // inode get_dir_path(const char* path)

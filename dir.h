@@ -1,5 +1,6 @@
 #include <string.h>
 
+#define DIRNODE_SIZE sizeof(struct dirnode)
 #define MAXDIRENTRY 30
 
 /*

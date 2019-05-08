@@ -6,6 +6,7 @@
 
 #define DISKNAME "file"
 #define BLOCKSIZE 512
+#define INODE_PAGE_SIZE sizeof(inode_page)
 
 int fs_getattr( const char *, struct stat * );
 int fs_readdir( const char *, void *, fuse_fill_dir_t, off_t, struct fuse_file_info * );
@@ -41,7 +42,7 @@ static struct fuse_operations lfs_oper = {
 //			file1.c
 
 struct disk_block{
-	struct disk_block *next;
+	int next_block;
 	char* data; // blocksize -4 for the next block pointer
 };
 
@@ -56,7 +57,7 @@ struct inode{
 
 struct inode_page{ // fills out a block of memory (48*10+16)
   struct inode inodes[10];
-	char freebitmap[10];
+	int free_ids;
   int next_page; // use block number here
 };
 
@@ -69,6 +70,5 @@ struct volume_control{
 	int max_file_entries;
 };
 
-ino_t get_inode_id();
-
+ino_t get_inode_id(struct volume_control );
 inode create_inode(size_t size);

@@ -1,30 +1,34 @@
 #include "dir.h"
 #include "lfs.h"
 
-static int init_tree(ino_t finode, FILE* fp)
+static int init_tree(ino_t finode, FILE* fp, int block_id)
 {
   struct dirnode* root = malloc(sizeof(dirnode));
-
-  if (!root)
+  if(!root)
   {
-    return -1;
+    return -ENOMEM;
   }
 
-  dirnode->fname = "/";
-  dirnode->inode = finode;
-  dirnode->type = 1;
-  dirnode->next = NULL;
-  dirnode->subdir = NULL;
-  dirnode->parent = NULL;
+  root->fname = "/";
+  root->inode = create_inode(0);
+  root->type = 1;
+  root->next = NULL;
+  root->subdir = NULL;
+  root->parent = NULL;
 
-  fwrite(root, sizeof(dirnode), )
+  if (writeblock(root, block_id, DIRNODE_SIZE) < DIRNODE_SIZE)
+  {
+    free(root);
+    return -EAGAIN;
+  }
   free(root);
+  return 0;
 }
 
 
 static int add_dirnode(dirnode *node, int ftype, char *fname, FILE* fp)
 {
-  if(strlen(fname) < 2 || fname > 220)
+  if(strlen(fname) < 2 || strlen(fname) > 220)
   {
     -EINVAL;
   }
@@ -33,9 +37,24 @@ static int add_dirnode(dirnode *node, int ftype, char *fname, FILE* fp)
     -EINVAL;
   }
   struct dirnode* temp_node = malloc(sizeof(struct dirnode));
+  if(!temp_node)
+  {
+    return -ENOMEM;
+  }
   temp_node->fname = fname;
   temp_node->type = ftype;
-  temp_node->file_inode = create_inode();
 
+  struct volume_control control_block = malloc(sizeof(volume_control));
+  if (!controlblock)
+  {
+    free(temp_node);
+    return -ENOMEM;
+  }
+  controlblock = readblock(0, sizeof(struct volume_control));
+  temp_node->file_inode = create_inode(controlblock);
+
+  temp_node->next = NULL;
+  temp_node->subdir = NULL;
+  temp_node->parent =
 
 }
