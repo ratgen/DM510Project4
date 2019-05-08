@@ -1,9 +1,45 @@
 #include "lfs.h"
 
-inode get_dir_path(const char* path)
+int readblock(int block_id) // reads 512 bytes from disk
 {
-
+	char buffer[512];
+	int offset = 512*block_id;
+  if(fread(buffer, 512, 1, fseek(fp, offset, SEEK_SET)) != 512)//fseek positions the stream
+  {
+    -EAGAIN;
+  }
+	return buffer;
 }
+/*
+	lowest_inode_id = 14+1
+	inode_ids : 1 2 3 4 5 6 7 8 9 10 11 12 13 14  16 17 18 19 20 21 22 23 24 25 26 27 28 29 30
+*/
+
+ino_t get_inode_id(struct volume_control *table)
+{
+	ino_t lowest_inode_id = 1;
+	struct inode_page *temp_inode_page = malloc(sizeof(struct inode_page));
+	if (!temp_inode_page)
+	{
+		return -ENOMEM;
+	}
+	temp_inode_page = readblock(table->inode_block);
+	struct inode inode_check;
+
+	for (size_t i = 0; i < 10; i++) {
+		inode_check = temp_inode_page->inodes[i];
+		if (lowest_inode_id == inode_check.inode_no)
+		{
+			lowest_inode_id++;
+		}
+	}
+  lowest_inode_id++;
+}
+
+// inode get_dir_path(const char* path)
+// {
+//
+// }
 
 int fs_getattr( const char *path, struct stat *stbuf ) {
 	// int res = 0;

@@ -1,4 +1,5 @@
 #include "dir.h"
+#include "lfs.h"
 
 static int init_tree(ino_t finode, FILE* fp)
 {
@@ -21,9 +22,9 @@ static int init_tree(ino_t finode, FILE* fp)
 }
 
 
-static int add_dirnode(dirnode *node, inot_t finode, int ftype, char *fname, FILE* fp)
-{ //lav en ny inode?
-  if(strlen(fname) < 2)
+static int add_dirnode(dirnode *node, int ftype, char *fname, FILE* fp)
+{
+  if(strlen(fname) < 2 || fname > 220)
   {
     -EINVAL;
   }
@@ -34,7 +35,7 @@ static int add_dirnode(dirnode *node, inot_t finode, int ftype, char *fname, FIL
   struct dirnode* temp_node = malloc(sizeof(struct dirnode));
   temp_node->fname = fname;
   temp_node->type = ftype;
-  temp_node->file_inode = finode;
+  temp_node->file_inode = create_inode();
 
 
 }

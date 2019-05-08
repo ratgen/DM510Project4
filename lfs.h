@@ -56,6 +56,7 @@ struct inode{
 
 struct inode_page{ // fills out a block of memory (48*10+16)
   struct inode inodes[10];
+	char freebitmap[10];
   int next_page; // use block number here
 };
 
@@ -67,3 +68,7 @@ struct volume_control{
 	int inode_block;
 	int max_file_entries;
 };
+
+ino_t get_inode_id();
+
+inode create_inode(size_t size);

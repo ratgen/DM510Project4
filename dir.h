@@ -1,16 +1,20 @@
+#include <string.h>
+
 #define MAXDIRENTRY 30
 
 /*
 * structure representing chapter 13.3.3 directory structure
 */
 
+#define FOLDER 0
+#define FILE 1
 
 
 struct dirnode{
-  char name[220]; // file path
+  char name[220]; // absolute file path
   int name_length;
   ino_t file_inode;
-  int type; // file if 0, 1 if directory
+  int type;       // file if 0, 1 if directory
   struct dirnode *next;
   struct dirnode *subdir;
   struct dirnode *parent;
