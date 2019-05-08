@@ -1,7 +1,7 @@
 #include "dir.h"
 #include "lfs.h"
 
-static int init_tree(ino_t finode, FILE* fp, int block_id)
+static int init_tree(int block_id)
 {
   struct dirnode* root = malloc(sizeof(dirnode));
   if(!root)
@@ -10,7 +10,7 @@ static int init_tree(ino_t finode, FILE* fp, int block_id)
   }
 
   root->fname = "/";
-  root->inode = create_inode(0);
+  root->file_inode = update_inode(0);
   root->type = 1;
   root->next = NULL;
   root->subdir = NULL;
@@ -26,7 +26,7 @@ static int init_tree(ino_t finode, FILE* fp, int block_id)
 }
 
 
-static int add_dirnode(dirnode *node, int ftype, char *fname, FILE* fp)
+static int add_dirnode(struct dirnode *node, int ftype, char *fname, FILE* fp)
 {
   if(strlen(fname) < 2 || strlen(fname) > 220)
   {
@@ -51,10 +51,25 @@ static int add_dirnode(dirnode *node, int ftype, char *fname, FILE* fp)
     return -ENOMEM;
   }
   controlblock = readblock(0, sizeof(struct volume_control));
-  temp_node->file_inode = create_inode(controlblock);
+  temp_node->file_inode = update_inode(controlblock);
 
   temp_node->next = NULL;
   temp_node->subdir = NULL;
   temp_node->parent =
 
+}
+
+static int add_dirnode(struct dirnode *node, int ftype, char *fname, FILE* fp)
+{
+  return 0;
+}
+
+static int remove_dirnode(struct dirnode *node, char *name)
+{
+  return 0;
+}
+
+static int find_dirnode(struct dirnode* root, char *path)
+{
+  return 0;
 }

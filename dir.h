@@ -3,13 +3,12 @@
 #define DIRNODE_SIZE sizeof(struct dirnode)
 #define MAXDIRENTRY 30
 
+// #define FOLDER    0
+// #define FILE      1
+
 /*
 * structure representing chapter 13.3.3 directory structure
 */
-
-#define FOLDER 0
-#define FILE 1
-
 
 struct dirnode{
   char name[220]; // absolute file path
@@ -21,10 +20,10 @@ struct dirnode{
   struct dirnode *parent;
 };
 
-static int init_tree(ino_t finode, FILE* fp);
+static int init_tree(int block_id);
 
-static int add_dirnode(dirnode *node, inot_t finode, int type, char *fname, FILE* fp);
+static int add_dirnode(struct dirnode *node, int ftype, char *fname, FILE* fp);
 
-static int remove_dirnode(dirnode *node, char *name);
+static int remove_dirnode(struct dirnode *node, char *name);
 
-static int find_dirnode(dirnode* root, char *path);
+static int find_dirnode(struct dirnode* root, char *path);

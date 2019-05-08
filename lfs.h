@@ -7,6 +7,7 @@
 #define DISKNAME "file"
 #define BLOCKSIZE 512
 #define INODE_PAGE_SIZE sizeof(struct inode_page)
+#define VOLUME_CONTROL_SIZE sizeof(struct volume_control)
 
 int fs_getattr( const char *, struct stat * );
 int fs_readdir( const char *, void *, fuse_fill_dir_t, off_t, struct fuse_file_info * );
@@ -70,5 +71,5 @@ struct volume_control{
 	int max_file_entries;
 };
 
-ino_t get_inode_id(struct volume_control *table);
+ino_t get_inode_id();
 struct inode create_inode(size_t size);

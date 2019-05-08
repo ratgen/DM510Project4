@@ -1,18 +1,9 @@
 #include "lfs.h"
 #include "dir.h"
 
-int init_volume(int nblocks, int nblock_size, int max_entries)
-{
-	struct volume_control *disk = malloc(sizeof(struct volume_control));
-	if (!disk)
-	{
-		return -ENOMEM;
-	}
-	disk->blocks =nblocks;
-	disk->block_size = nblock_size;
-  disk->max_file_entries = max_entries;
-
-}
+/*
+*  /path/path1 path2/file
+*/
 
 int writeblock(void* buf, int block_id, size_t size)
 // writes `size` bytes from `buf` to `block_id` file block
@@ -55,7 +46,7 @@ int readblock(void* buf, int block_id, size_t size)
 	{
 		return -EINVAL;
 	}
-	FILE *fp = fopen(DISKNAME, "r+b");
+	FILE* fp = fopen(DISKNAME, "r+b");
 	int offset = 512*block_id;
 	if (fseek(fp, offset, SEEK_SET) < 0)
 	{
@@ -68,15 +59,49 @@ int readblock(void* buf, int block_id, size_t size)
   }
 	return size;
 }
+
+int init_volume(int nblocks, int nblock_size, int max_entries)
+{
+	struct volume_control *disk = malloc(sizeof(struct volume_control));
+	if (!disk)
+	{
+		return -ENOMEM;
+	}
+	disk->blocks =nblocks;
+	disk->block_size = nblock_size;
+  disk->max_file_entries = max_entries;
+	// init_tree(2);
+}
+
 /*
 	lowest_inode_id = 25+1
 	inode_ids p1 : 1  2  3  4  5  6  7  8  9  10 | free_ids : 0 | next_page = p2
 	inode_ids p2 : 11 12 13 14 15 16 17 18 19 20 | free_ids : 0 | next_page = p3
 	inode_ids p3 : 21 22 23 24 25    27 28 29 30 | free_ids : 1 | next_page = NULL
 */
-
-ino_t get_inode_id(struct volume_control *table)
+struct volume_control *get_volume_control()
 {
+	struct volume_control *volume_table = malloc(VOLUME_CONTROL_SIZE);
+	if (!volume_table)
+	{
+		return NULL;
+	}
+	if(readblock(volume_table, 0, VOLUME_CONTROL_SIZE) < 0)
+	{
+		free(volume_table);
+		return NULL;
+	}
+	return volume_table;
+}
+
+ino_t get_inode_id()
+{
+	struct volume_control *table = get_volume_control();
+	if (!table)
+	{
+		return -EFAULT;
+	}
+
 	ino_t lowest_inode_id = 1;
 	struct inode_page *temp_inode_page = malloc(sizeof(struct inode_page));
 	if (!temp_inode_page)
@@ -110,6 +135,71 @@ ino_t get_inode_id(struct volume_control *table)
 	lowest_inode_id++;
 	free(temp_inode_page);
 	return lowest_inode_id;
+}
+
+/*
+	id = 27
+	inode_ids p1 : 1  2  3  4  5  6  7  8  9  10 | next_page = p2
+	inode_ids p2 : 11 12 13 14 15 16 17 18 19 20 | next_page = p3
+	inode_ids p3 : 21 22 23 24 25 26 27 28 29 30 | next_page = NULL
+*/
+
+ino_t get_inode_page(struct inode_page *buffer, ino_t id)
+// Gets the page that contains the inode
+{
+	struct volume_control *table = get_volume_control();
+
+	struct inode_page *temp_inode_page = malloc(INODE_PAGE_SIZE);
+	if (!temp_inode_page) {
+		free(table);
+		return -ENOMEM;
+	}
+	if(readblock(temp_inode_page, table->inode_block, INODE_PAGE_SIZE) < 0)
+	{
+		free(table);
+		free(temp_inode_page);
+		return -EFAULT;
+	}
+
+	ino_t max_page_inode = 10;
+	while (id > max_page_inode)
+	{
+		if (temp_inode_page->next_page == 0) // no next page
+		{
+			free(table);
+			free(temp_inode_page);
+			return -EFAULT;
+		}
+		if (readblock(temp_inode_page, temp_inode_page->next_page, INODE_PAGE_SIZE) < INODE_PAGE_SIZE)
+		{
+			return -EFAULT;
+		}
+		id = id-10; // go to next page, decrease id
+	}
+	memcpy(buffer, temp_inode_page, INODE_PAGE_SIZE);
+	free(table);
+	free(temp_inode_page);
+	return id;
+}
+
+ino_t update_inode(int size){
+	ino_t id = get_inode_id();
+
+	struct inode_page *temp_inode_page = malloc(INODE_PAGE_SIZE);
+	if (!temp_inode_page) {
+		return -ENOMEM;
+	}
+
+	ino_t index = get_inode_page(temp_inode_page, id);
+	if (index < 0)
+	{
+		return -EAGAIN;
+	}
+	struct inode *temp_inode = &temp_inode_page->inodes[index];
+	temp_inode->size = 0;
+
+
+	return (ino_t) 0;
 }
 
 // inode get_dir_path(const char* path)

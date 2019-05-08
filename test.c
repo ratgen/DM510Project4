@@ -19,7 +19,7 @@ struct inode{
 };
 
 struct dirnode{
-  char name[216]; // file path
+  // char name[216]; // file path
   ino_t file_inode;
   int type; // file if 0, 1 if directory
   struct dirnode *next;
@@ -48,7 +48,6 @@ int main(){
   printf("The size of struct dirnode is: %d\n", size_dir);
   printf("The size of struct inode is: %d\n", size_inode);
   printf("The size of struct table inode is: %d\n", size_table_inode);
-
 
   return 0;
 }
