@@ -10,7 +10,7 @@ static int init_tree(ino_t finode, FILE* fp)
   }
 
   dirnode->fname = "/";
-  dirnode->file_inode = finode;
+  dirnode->inode = finode;
   dirnode->type = 1;
   dirnode->next = NULL;
   dirnode->subdir = NULL;
@@ -22,8 +22,19 @@ static int init_tree(ino_t finode, FILE* fp)
 
 
 static int add_dirnode(dirnode *node, inot_t finode, int ftype, char *fname, FILE* fp)
-{
+{ //lav en ny inode?
+  if(strlen(fname) < 2)
+  {
+    -EINVAL;
+  }
+  if(ftype != 0 && ftype != 1)
+  {
+    -EINVAL;
+  }
   struct dirnode* temp_node = malloc(sizeof(struct dirnode));
+  temp_node->fname = fname;
+  temp_node->type = ftype;
+  temp_node->file_inode = finode;
 
 
 }
