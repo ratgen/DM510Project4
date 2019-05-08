@@ -7,7 +7,8 @@
 
 
 struct dirnode{
-  char name[224]; // file path
+  char name[220]; // file path
+  int name_length;
   ino_t file_inode;
   int type; // file if 0, 1 if directory
   struct dirnode *next;
@@ -21,4 +22,4 @@ static int add_dirnode(dirnode *node, inot_t finode, int type, char *fname, FILE
 
 static int remove_dirnode(dirnode *node, char *name);
 
-static int find_dirnode(dirnode* root, char *name);
+static int find_dirnode(dirnode* root, char *path);

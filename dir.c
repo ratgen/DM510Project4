@@ -2,7 +2,7 @@
 
 static int init_tree(ino_t finode, FILE* fp)
 {
-  dirnode* root = malloc(sizeof(dirnode));
+  struct dirnode* root = malloc(sizeof(dirnode));
 
   if (!root)
   {
@@ -16,21 +16,14 @@ static int init_tree(ino_t finode, FILE* fp)
   dirnode->subdir = NULL;
   dirnode->parent = NULL;
 
-  fwrite(root)
+  fwrite(root, sizeof(dirnode), )
   free(root);
 }
 
 
-static int add_dirnode(dirnode *root, inot_t finode, int ftype, char *fname, FILE* fp)
+static int add_dirnode(dirnode *node, inot_t finode, int ftype, char *fname, FILE* fp)
 {
-  dirnode* temp_node = malloc(sizeof(dirnode));
+  struct dirnode* temp_node = malloc(sizeof(struct dirnode));
 
-  if (!tempnode)
-  {
-    return -1;
-  }
-
-  tempnode->name = fname;
-  tempnode->type = ftype;
 
 }
