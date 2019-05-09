@@ -73,7 +73,8 @@ struct volume_control *get_volume_control()
 
 int get_free_block()
 {
-  struct volume_control *table = get_volume_control();
+  printf("%s\n", "getting a free datablock");
+  struct volume_control *table = readblock(0, VOLUME_CONTROL_SIZE);
   if (!table)
   {
     return -EFAULT;
@@ -84,17 +85,21 @@ int get_free_block()
     return -ENOSPC;
   }
 	int freeblock = 0;
+  printf("%s\n", "reading block");
   struct disk_block *temp_block = readblock(3, DISK_BLOCK_SIZE);
   if (temp_block < 0)
   {
     free(temp_block);
     return -EFAULT;
   }
-  while (freeblock = 0)
+  while (freeblock == 0)
   {
+    printf("%s\n", "loop");
     for (int i = 0; i < 508; i++) {
+      printf("%d\n", i);
       if (strcmp(temp_block->data[i], "0") == 0)
       {
+        printf("%d\n", i);
         freeblock = i;
         break;
       }
@@ -144,9 +149,13 @@ int init_byte_map(int block_id, int free_blocks)
   printf("After loop : %d\n", pages);
   // update allocated
 
+  node = readblock(3, DISK_BLOCK_SIZE);
+
   for (int i = 0; i < last_block+1; i++) {
     node->data[i] = "1";
   }
+  writeblock(node, 3, DISK_BLOCK_SIZE);
+
   return pages;
 }
 
@@ -333,6 +342,7 @@ int fs_mkdir(const char *path,
      }
 
      int blockid = get_free_block();
+     printf("block id %d\n", blockid);
      if (blockid < 0)
      {
        return blockid;
