@@ -136,8 +136,8 @@
 
 struct linkedlist_dir *get_link(const char* path)
 {
-  // printf("get_link : start | path %s\n", path);
-  struct linkedlist_dir *node = readblock(2, LINKEDLIST_SIZE);
+  printf("get_link : start | path %s\n", path);
+  struct linkedlist_dir *node = readblock(1, LINKEDLIST_SIZE);
   if (node < 0)
   {
     return -EFAULT;

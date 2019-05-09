@@ -214,18 +214,23 @@ int fs_getattr( const char *path, struct stat *stbuf ) {
 		free(root);
 		return -EFAULT;
 	}
+  printf("path: %s\n", path);
 	struct linkedlist_dir *node = get_link(path);
   if(!node)
   {
+    printf("%s\n", "no such file");
     return -ENOENT;
   }
 
   if(node->type == 0)
   {
+    printf("%s\n", "fype is file");
+
     stbuf->st_mode = S_IFMT; //is file
   }
   else
   {
+    printf("%s\n", "fype is dir");
     stbuf->st_mode = S_IFDIR; //is directory
   }
 
