@@ -92,12 +92,18 @@ int get_free_block()
     free(temp_block);
     return -EFAULT;
   }
+  printf("priting first char of temp \n");
+  printf("%c\n", temp_block->data[46]);
+  printf("%c\n", temp_block->data[47]);
+  printf("%c\n", temp_block->data[48]);
+  printf("%c\n", temp_block->data[49]);
+
   while (freeblock == 0)
   {
     printf("%s\n", "loop");
     for (int i = 0; i < 508; i++) {
       printf("%d\n", i);
-      if (strcmp(temp_block->data[i], "0") == 0)
+      if (strcmp(temp_block->data[i], '0') == 0)
       {
         printf("%d\n", i);
         freeblock = i;
@@ -124,7 +130,7 @@ int init_byte_map(int block_id, int free_blocks)
   }
   for(int i = 0; i < 508; i++)
   {
-    node->data[i] = "0";
+    node->data[i] = '0';
   }
   // 3 + 41 44
   printf("Free blocks %d\n", free_blocks);
@@ -151,10 +157,11 @@ int init_byte_map(int block_id, int free_blocks)
 
   node = readblock(3, DISK_BLOCK_SIZE);
 
-  for (int i = 0; i < last_block+1; i++) {
-    node->data[i] = "1";
+  for (int i = 0; i < last_block; i++) {
+    node->data[i] = '1';
   }
   writeblock(node, 3, DISK_BLOCK_SIZE);
+
 
   return pages;
 }
