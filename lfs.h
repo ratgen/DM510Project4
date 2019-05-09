@@ -7,7 +7,6 @@
 #include <libgen.h>
 
 #define BLOCKSIZE 512
-#define INODE_PAGE_SIZE sizeof(struct inode_page)
 #define VOLUME_CONTROL_SIZE sizeof(struct volume_control)
 #define DISK_BLOCK_SIZE sizeof(struct disk_block)
 
@@ -36,16 +35,6 @@ static struct fuse_operations lfs_oper = {
 	.write = fs_write,
 	.utime = fs_utime,     //maybe should use uitemns (used to update access and modification of file)
 };
-// test/
-//		hej/
-//			file1.c
-//		file.c
-
-// test/
-//		file.c
-//		hej/
-//			file1.c
-
 struct disk_block{
 	int next_block;
 	char data[508]; // blocksize -4 for the next block pointer
@@ -58,7 +47,6 @@ struct volume_control{
 	int inode_block;
 	int max_file_entries;
 };
-
 
 int delete_block();
 int writeblock(void* buf, int block_id, size_t size);

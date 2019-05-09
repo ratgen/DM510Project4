@@ -1,5 +1,7 @@
 #include <sys/types.h>
 
+#define INODE_PAGE_SIZE sizeof(struct inode_page)
+
 struct inode{
   ino_t inode_no;
   size_t size;

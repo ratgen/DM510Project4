@@ -4,7 +4,6 @@
 
 int init_inode(int block_id, int max_inode)
 {
-
 	struct inode_page *temp_inode_page = malloc(INODE_PAGE_SIZE);
 	if (!temp_inode_page)
 	{
@@ -44,7 +43,9 @@ ino_t get_inode_id()
 		return -EFAULT;
 	}
 	ino_t lowest_inode_id = 1;
+  printf("inode block ptr %p\n", table->inode_block);
   struct inode_page *temp_inode_page = readblock(table->inode_block, INODE_PAGE_SIZE);
+  printf("%s\n", "got the first inode page");
 
   while(temp_inode_page->free_ids == 0){ // if empty, look for next table
 		if (temp_inode_page->next_page == 0){
@@ -53,13 +54,14 @@ ino_t get_inode_id()
 		}
 		else
 		{
+      printf("%s\n", "getting next page");
 			lowest_inode_id += 5;
       temp_inode_page = readblock(temp_inode_page->next_page, INODE_PAGE_SIZE);
 		}
 	}
 
 	struct inode inode_check;
-
+  printf("%s\n", "inode");
 	for (size_t i = 0; i < 5; i++) {
 		inode_check = temp_inode_page->inodes[i];
 		if (inode_check.inode_no == lowest_inode_id)

@@ -1,5 +1,6 @@
 #include "dir.h"
 #include "lfs.h"
+#include "inode.h"
 
 int writeblock(void* buf, int block_id, size_t size)
 {
@@ -178,8 +179,9 @@ int init_volume(int nblocks, int nblock_size, int max_entries)
   {
       blocks_used += res;
   }
-	// printf("about to init head.\n");
-  ino_t root_inode = get_inode_id();
+	printf("getting id.\n");
+  ino_t root_inode = 1;
+  printf("%s\n", "initting head");
   res = init_head(1, root_inode);
   if (res < 0)
   {
@@ -188,8 +190,7 @@ int init_volume(int nblocks, int nblock_size, int max_entries)
   }
   blocks_used += res;
 
-	// printf("Done init both.\n");
-
+	printf("init bytemap\n");
   res = init_byte_map(blocks_used, disk->free_block_count);
   if (res < 0)
   {
@@ -201,13 +202,13 @@ int init_volume(int nblocks, int nblock_size, int max_entries)
     blocks_used += res;
   }
   disk->free_block_count -= blocks_used;
-
+  printf("%s\n", "writing vol control block");
 	writeblock(disk, 0, sizeof(struct volume_control));
   printf("init_volume | end init \n");
 	return 0;
 }
 int fs_getattr( const char *path, struct stat *stbuf ) {
-  struct linkedlist_dir *root =  readblock(2, LINKEDLIST_SIZE);
+  struct linkedlist_dir *root =  readblock(1, LINKEDLIST_SIZE);
 	if (root < 0)
 	{
 		free(root);
