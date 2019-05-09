@@ -400,6 +400,14 @@ int fs_truncate(const char *path, off_t size, struct fuse_file_info *fi){
 int main( int argc, char *argv[] ) {
 	// printf("Running lfs.\n");
   printf("main func\n");
+  file_system = fopen("file","r+b");
+  if(!file_system)
+  {
+    //the file must not exist, a new one is created
+    file_system = fopen("file", "w");
+    fclose(file_system);
+    file_system = fopen("file", "r+b")
+  }
 	init_volume(20480, 512, 30);
 	fuse_main( argc, argv, &lfs_oper ); // Mounts the file system, at the mountpoint given
 

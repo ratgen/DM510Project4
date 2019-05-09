@@ -6,11 +6,12 @@
 #include <math.h>
 #include <libgen.h>
 
-#define DISKNAME "file"
 #define BLOCKSIZE 512
 #define INODE_PAGE_SIZE sizeof(struct inode_page)
 #define VOLUME_CONTROL_SIZE sizeof(struct volume_control)
 #define DISK_BLOCK_SIZE sizeof(struct disk_block)
+
+FILE * file_system;
 
 int fs_getattr( const char *, struct stat * );
 int fs_readdir( const char *, void *, fuse_fill_dir_t, off_t, struct fuse_file_info * );
