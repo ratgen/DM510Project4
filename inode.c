@@ -1,6 +1,6 @@
-#include "inode.h"
 #include "lfs.h"
 #include "dir.h"
+#include "inode.h"
 
 int init_inode(int block_id, int max_inode)
 {
@@ -43,17 +43,10 @@ ino_t get_inode_id()
 	{
 		return -EFAULT;
 	}
-
 	ino_t lowest_inode_id = 1;
-	struct inode_page *temp_inode_page = malloc(sizeof(struct inode_page));
-	if (!temp_inode_page)
-	{
-		return -ENOMEM;
-	}
+  struct inode_page *temp_inode_page = readblock(table->inode_block, INODE_PAGE_SIZE);
 
-  readblock(temp_inode_page, table->inode_block, INODE_PAGE_SIZE);
-
-	while(temp_inode_page->free_ids == 0){ // if empty, look for next table
+  while(temp_inode_page->free_ids == 0){ // if empty, look for next table
 		if (temp_inode_page->next_page == 0){
 			free(temp_inode_page);
 			return -ENOMEM;
@@ -61,7 +54,7 @@ ino_t get_inode_id()
 		else
 		{
 			lowest_inode_id += 5;
-			readblock(temp_inode_page, temp_inode_page->next_page, INODE_PAGE_SIZE);
+      temp_inode_page = readblock(temp_inode_page->next_page, INODE_PAGE_SIZE);
 		}
 	}
 
@@ -94,24 +87,21 @@ int get_inode_page(struct inode_page *buffer, ino_t id)
     return -EFAULT;
   }
 
-	struct inode_page *temp_inode_page = malloc(INODE_PAGE_SIZE);
-	if (!temp_inode_page) {
-		free(table);
-		return -ENOMEM;
-	}
-
-	if(readblock(temp_inode_page, table->inode_block, INODE_PAGE_SIZE) < 0)
+  struct inode_page *temp_inode_page = readblock(table->inode_block, INODE_PAGE_SIZE);
+	if(temp_inode_page < 0)
 	{
 		free(table);
-		free(temp_inode_page);
 		return -EFAULT;
 	}
 
 	ino_t max_page_inode = 7;
 	while (id > max_page_inode)
 	{
-		if (readblock(temp_inode_page, temp_inode_page->next_page, INODE_PAGE_SIZE) < INODE_PAGE_SIZE)
+    struct inode_page *temp_inode_page =
+                                  readblock(table->inode_block, INODE_PAGE_SIZE);
+		if (temp_inode_page < 0)
 		{
+      free(table);
 			return -EFAULT;
 		}
 		id = id-5; // go to next page, decrease id

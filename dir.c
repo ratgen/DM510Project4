@@ -42,19 +42,14 @@
 
  int add_entry(int root_block_id, const char* fname, ino_t finode, int ftype, int block_id)
 {
-  struct linkedlist_dir *tail_node = malloc(LINKEDLIST_SIZE);
-  if (!tail_node)
+  struct linkedlist_dir *tail_node =  readblock(root_block_id, LINKEDLIST_SIZE);
+  if(tail_node < 0)
   {
-    return -ENOMEM;
-  }
-  if(readblock(tail_node, root_block_id, LINKEDLIST_SIZE) < 0)
-  {
-    free(tail_node);
     return -EFAULT;
   }
   while(tail_node->next != 0)
   {
-    readblock(tail_node, tail_node->next, LINKEDLIST_SIZE);
+    tail_node = readblock(tail_node->next, LINKEDLIST_SIZE);
   }
 
   struct linkedlist_dir *entry = malloc(LINKEDLIST_SIZE);
@@ -98,31 +93,18 @@
  int delete_entry(int block_id)
 {
   int res = 0;
-  // read out struct in
-  struct linkedlist_dir *entry = malloc(LINKEDLIST_SIZE);
-  if (!entry)
-  {
-    return -ENOMEM;
-  }
-  res = readblock(entry, block_id, LINKEDLIST_SIZE);
-  if (res < 0)
+  struct linkedlist_dir *entry = readblock(block_id, LINKEDLIST_SIZE);
+  if (entry < 0)
   {
     free(entry);
     return -EFAULT;
   }
 
-  struct linkedlist_dir *prev_entry = malloc(LINKEDLIST_SIZE);
-  if (!prev_entry)
+  struct linkedlist_dir *prev_entry = readblock(block_id, LINKEDLIST_SIZE);
+  if (prev_entry < 0)
   {
-    return -ENOMEM;
-  }
-  res = readblock(prev_entry, block_id, LINKEDLIST_SIZE);
-  if (res < 0)
-  {
-    free(prev_entry);
     return -EFAULT;
   }
-
   // C1
   if (entry->next == 0)
   {
@@ -155,38 +137,22 @@
 struct linkedlist_dir *get_link(const char* path)
 {
   // printf("get_link : start | path %s\n", path);
-  struct linkedlist_dir *node = malloc(LINKEDLIST_SIZE);
-  if(!node)
+  struct linkedlist_dir *node = readblock(2, LINKEDLIST_SIZE);
+  if (node < 0)
   {
-    return NULL;
+    return -EFAULT;
   }
-
-  if (readblock(node, 2, LINKEDLIST_SIZE) < 0)
-  {
-    // printf("get_link : failed to read node\n");
-    free(node);
-    return NULL;
-  }
-
-  // printf("get_link : while loop about to begin\n");
-  // printf("get_link : path is %s, and node->name is %s\n", path, node->name);
-  // printf("get_link : node->name size is %zd and node->name_length is %d\n", sizeof(node->name), node->name_length);
-
   while(strcmp(node->name, path) != 0)
   {
     if(node->next == 0)
     {
-      // printf("get_link : failed. node->next==0\n");
       return NULL;
     }
-    // printf("get_link : about to read\n");
-    if (readblock(node, node->next, LINKEDLIST_SIZE) < 0)
+    node = readblock(node->next, LINKEDLIST_SIZE);
+    if (node < 0)
     {
-      // printf("get_link : failed to read node->next\n");
-      return NULL;
+      return -EFAULT;
     }
-    // printf("get_link : done with readblock\n");
   }
-  // printf("get_link : while loop done and don with get_link\n");
   return node;
 }

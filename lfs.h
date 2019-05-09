@@ -51,22 +51,6 @@ struct disk_block{
 	char data[508]; // blocksize -4 for the next block pointer
 };
 
-struct inode{
-  ino_t inode_no;
-  size_t size;
-  struct timespec atime;     //access time
-  struct timespec mtime;      //modification time
-	struct disk_block* start;
-	struct disk_block* end;
-};
-
-struct inode_page{ // fills out a block of memory (48*10+16)
-  struct inode inodes[7];
-  int size;
-	int free_ids;
-  int next_page; // use block number here
-};
-
 struct volume_control{
   int blocks;
   int free_block_count;
@@ -75,8 +59,7 @@ struct volume_control{
 	int max_file_entries;
 };
 
-ino_t get_inode_id();
-int delete_inode(ino_t id);
+
 int delete_block();
 int writeblock(void* buf, int block_id, size_t size);
-int readblock(void* buf, int block_id, size_t size);
+void* readblock(int block_id, size_t size);

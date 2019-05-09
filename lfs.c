@@ -1,15 +1,6 @@
 #include "dir.h"
 #include "lfs.h"
 
-
-  // void* readblock(int block_id, size_t size);
-  // struct linkedlist_dir *temp_dir = (*linkedlist_dir) readblock(2, LINKEDLIST_SIZE);
-
-/*
-*  /path/path1 path2/file
-*/
-
-
 int writeblock(void* buf, int block_id, size_t size)
 {
 	if (size < 0 || size > 512)
@@ -33,10 +24,9 @@ int writeblock(void* buf, int block_id, size_t size)
 	return size;
 }
 
-int readblock(void* buf, int block_id, size_t size)
-// reads `size` bytes from disk into `buf`
+void* readblock(int block_id, size_t size)
+// reads `size` bytes from disk and returns a void* pointer to the data
 {
-	int res = 0;
 	if (size < 0 || size > 512)
 	{
 		return -EINVAL;
@@ -45,13 +35,23 @@ int readblock(void* buf, int block_id, size_t size)
 	{
 		return -EINVAL;
 	}
-	int offset = 512*block_id;
-  fseek(file_system, offset, SEEK_SET);
-  if(fread(buf, size, 1, file_system) != 1)
+  void* buffer = malloc(size);
+  if(!buffer)
   {
+    return -ENOMEM;
+  }
+
+	int offset = 512*block_id;
+  if(fseek(file_system, offset, SEEK_SET) < 0){
+    free(buffer);
     return -EAGAIN;
   }
-	return size;
+  if(fread(buffer, size, 1, file_system) != 1)
+  {
+    free(buffer);
+    return -EAGAIN;
+  }
+	return buffer;
 }
 
 int delete_block()
@@ -59,16 +59,10 @@ int delete_block()
 	return 0;
 }
 
-
-
 struct volume_control *get_volume_control()
 {
-	struct volume_control *volume_table = malloc(VOLUME_CONTROL_SIZE);
-	if (!volume_table)
-	{
-		return NULL;
-	}
-	if(readblock(volume_table, 0, VOLUME_CONTROL_SIZE) < 0)
+  struct volume_control *volume_table =  readblock(0, VOLUME_CONTROL_SIZE);
+  if(volume_table < 0)
 	{
 		free(volume_table);
 		return NULL;
@@ -88,22 +82,13 @@ int get_free_block()
     free(table);
     return -ENOSPC;
   }
-
 	int freeblock = 0;
-
-  struct disk_block *temp_block = malloc(DISK_BLOCK_SIZE);
-  if (!temp_block)
-  {
-    return -ENOMEM;
-  }
-
-
-  if (readblock(temp_block, 3, DISK_BLOCK_SIZE))
+  struct disk_block *temp_block = readblock(3, DISK_BLOCK_SIZE);
+  if (temp_block < 0)
   {
     free(temp_block);
     return -EFAULT;
   }
-
   while (freeblock = 0)
   {
     for (int i = 0; i < 508; i++) {
@@ -126,12 +111,11 @@ int get_free_block()
 
 int init_byte_map(int block_id, int free_blocks)
 {
-  struct disk_block *node = malloc(sizeof(DISK_BLOCK_SIZE));
-  if(!node)
+  struct disk_block *node = readblock(block_id, DISK_BLOCK_SIZE);
+  if (node < 0 )
   {
-    return -ENOMEM;
+    return -EFAULT;
   }
-
   for(int i = 0; i < 508; i++)
   {
     node->data[i] = "0";
@@ -159,11 +143,6 @@ int init_byte_map(int block_id, int free_blocks)
   printf("After loop : %d\n", pages);
   // update allocated
 
-  if (readblock(node, block_id, BLOCKSIZE) < 0 )
-  {
-    free(node);
-    return -EFAULT;
-  }
   for (int i = 0; i < last_block+1; i++) {
     node->data[i] = "1";
   }
@@ -227,21 +206,13 @@ int init_volume(int nblocks, int nblock_size, int max_entries)
   printf("init_volume | end init \n");
 	return 0;
 }
-
-
-
 int fs_getattr( const char *path, struct stat *stbuf ) {
-  struct linkedlist_dir *root = malloc(LINKEDLIST_SIZE);
-	if (!root)
-	{
-		return -ENOMEM;
-	}
-	if (readblock(root, 2, LINKEDLIST_SIZE) < 0)
+  struct linkedlist_dir *root =  readblock(2, LINKEDLIST_SIZE);
+	if (root < 0)
 	{
 		free(root);
 		return -EFAULT;
 	}
-
 	struct linkedlist_dir *node = get_link(path);
   if(!node)
   {
@@ -279,14 +250,7 @@ int fs_readdir( const char *path,
 	(void) fi;
  	printf("readdir : (path=%s)\n", path);
 
-
-  struct linkedlist_dir *root = malloc(LINKEDLIST_SIZE);
-	if (!root) {
-		printf("root allocation failed\n");
-		return -ENOMEM;
-	}
-
-  readblock(root, 2, LINKEDLIST_SIZE);
+  struct linkedlist_dir *root = readblock(2, LINKEDLIST_SIZE);
 
 	printf("ino_t of root is: %ld \n", root->file_inode);
 	struct linkedlist_dir *listlink = get_link(path);
