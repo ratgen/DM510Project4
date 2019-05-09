@@ -62,12 +62,12 @@ int delete_block()
 
 struct volume_control *get_volume_control()
 {
-  struct volume_control *volume_table =  readblock(0, VOLUME_CONTROL_SIZE);
+  struct volume_control *volume_table = readblock(0, VOLUME_CONTROL_SIZE);
   if(volume_table < 0)
 	{
-		free(volume_table);
 		return NULL;
 	}
+
 	return volume_table;
 }
 
@@ -165,6 +165,7 @@ int init_volume(int nblocks, int nblock_size, int max_entries)
 	disk->block_size = nblock_size;
   disk->max_file_entries = max_entries;
   disk->free_block_count = disk->blocks; //exclude vol control block, dir head and init inode
+  disk->inode_block = 2;
 
 	// printf("about to init inode.\n");
   int res = 0;
@@ -322,9 +323,10 @@ int fs_release(const char *path, struct fuse_file_info *fi) {
 int fs_mkdir(const char *path,
 	 					 mode_t mode)
 {
-    printf("mkdir : path (%s)\n", path);
-
+      printf("mkdir : path (%s)\n", path);
+      printf("%s\n", "getting id");
      ino_t inode_id = get_inode_id();
+     printf("%s %d\n", "got inode id is: ", inode_id);
      if (inode_id < 0)
      {
        return (int) inode_id;

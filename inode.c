@@ -37,15 +37,9 @@ int init_inode(int block_id, int max_inode)
 
 ino_t get_inode_id()
 {
-	struct volume_control *table = get_volume_control();
-	if (!table)
-	{
-		return -EFAULT;
-	}
+  struct volume_control *table = readblock(0, VOLUME_CONTROL_SIZE);
 	ino_t lowest_inode_id = 1;
-  printf("inode block ptr %p\n", table->inode_block);
-  struct inode_page *temp_inode_page = readblock(table->inode_block, INODE_PAGE_SIZE);
-  printf("%s\n", "got the first inode page");
+  struct inode_page *temp_inode_page = readblock(table->inode_block, sizeof(struct inode_page));
 
   while(temp_inode_page->free_ids == 0){ // if empty, look for next table
 		if (temp_inode_page->next_page == 0){
@@ -54,14 +48,12 @@ ino_t get_inode_id()
 		}
 		else
 		{
-      printf("%s\n", "getting next page");
 			lowest_inode_id += 5;
       temp_inode_page = readblock(temp_inode_page->next_page, INODE_PAGE_SIZE);
 		}
 	}
 
 	struct inode inode_check;
-  printf("%s\n", "inode");
 	for (size_t i = 0; i < 5; i++) {
 		inode_check = temp_inode_page->inodes[i];
 		if (inode_check.inode_no == lowest_inode_id)
@@ -71,6 +63,7 @@ ino_t get_inode_id()
 	}
 	lowest_inode_id++;
 	free(temp_inode_page);
+  printf("returning inode %d\n", lowest_inode_id);
 	return lowest_inode_id;
 }
 
