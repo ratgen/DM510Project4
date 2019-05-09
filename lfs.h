@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <libgen.h>
+
 
 #define DISKNAME "file"
 #define BLOCKSIZE 512
@@ -50,14 +52,14 @@ struct disk_block{
 struct inode{
   ino_t inode_no;
   size_t size;
-  time_t atime;     //access time
-  time_t mtime;      //modification time
+  struct timespec atime;     //access time
+  struct timespec mtime;      //modification time
 	struct disk_block* start;
 	struct disk_block* end;
 };
 
 struct inode_page{ // fills out a block of memory (48*10+16)
-  struct inode inodes[10];
+  struct inode inodes[5];
 	int free_ids;
   int next_page; // use block number here
 };
@@ -72,4 +74,9 @@ struct volume_control{
 };
 
 ino_t get_inode_id();
+int delete_inode(ino_t id);
+int delete_block();
+int writeblock(void* buf, int block_id, size_t size);
+int readblock(void* buf, int block_id, size_t size);
+
 struct inode create_inode(size_t size);

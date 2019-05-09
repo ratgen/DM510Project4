@@ -1,29 +1,22 @@
 #include <string.h>
+#include <sys/types.h>
 
-#define DIRNODE_SIZE sizeof(struct dirnode)
 #define MAXDIRENTRY 30
+#define LINKEDLIST_SIZE sizeof(struct linkedlist_dir)
 
-// #define FOLDER    0
-// #define FILE      1
-
-/*
-* structure representing chapter 13.3.3 directory structure
-*/
-
-struct dirnode{
+struct linkedlist_dir{
   char name[220]; // absolute file path
   int name_length;
   ino_t file_inode;
   int type;       // file if 0, 1 if directory
-  struct dirnode *next;
-  struct dirnode *subdir;
-  struct dirnode *parent;
+  int next;
+  int prev;
 };
 
-static int init_tree(int block_id);
+int init_head(int block_id, ino_t finode);
 
-static int add_dirnode(struct dirnode *node, int ftype, char *fname, FILE* fp);
+int add_entry(int prev_linkedlist_id, char* fname, ino_t finode, int ftype, int block_id);
 
-static int remove_dirnode(struct dirnode *node, char *name);
+int delete_entry(int block_id);
 
-static int find_dirnode(struct dirnode* root, char *path);
+struct linkedlist_dir *get_link(const char* path);

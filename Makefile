@@ -1,14 +1,14 @@
 GCC = gcc
-SOURCES = lfs.c
+SOURCES = lfs.c dir.c
 OBJS := $(patsubst %.c,%.o,$(SOURCES))
 CFLAGS = -O2 -Wall -D_FILE_OFFSET_BITS=64 -DFUSE_USE_VERSION=25
 
 .PHONY: lfs
 
 ##
-# Libs 
+# Libs
 ##
-LIBS := fuse 
+LIBS := fuse
 LIBS := $(addprefix -l,$(LIBS))
 
 all: lfs

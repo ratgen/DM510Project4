@@ -3,28 +3,20 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <libgen.h>
 
 struct disk_block{
-	struct disk_block *next;
+	int next_block;
 	char* data; // blocksize -4 for the next block pointer
 };
 
 struct inode{
   ino_t inode_no;
   size_t size;
-  time_t atime;     //access time
-  time_t mtime;      //modification time
+  struct timespec atime;     //access time
+  struct timespec mtime;      //modification time
 	struct disk_block* start;
 	struct disk_block* end;
-};
-
-struct dirnode{
-  // char name[216]; // file path
-  ino_t file_inode;
-  int type; // file if 0, 1 if directory
-  struct dirnode *next;
-  struct dirnode *subdir;
-  struct dirnode *parent;
 };
 
 struct inode_page{ // fills out a block of memory (48*10+16)
@@ -38,16 +30,16 @@ struct volume_control{
   int free_blocks;
   int block_size;
   int free_block;
+	int inode_block;
+	int max_file_entries;
 };
 
 int main(){
-  int size_dir = (int) sizeof(struct dirnode);
-  int size_inode = (int) sizeof(struct inode);
-  int size_table_inode = (int) sizeof(struct inode_page);
+  printf("INODE_PAGE_SIZE %zd\n", sizeof(struct inode_page));
+  printf("INODE_SIZE %zd\n", sizeof(struct inode));
+  printf("INODE_SIZE %zd\n", sizeof(struct disk_block));
+  printf("TIMESPEC_SIZE %zd\n", sizeof(struct timespec));
+  printf("SIZE_T_SIZE %zd\n", sizeof(size_t));
+  printf("INO_T_SIZE %zd\n", sizeof(ino_t));
 
-  printf("The size of struct dirnode is: %d\n", size_dir);
-  printf("The size of struct inode is: %d\n", size_inode);
-  printf("The size of struct table inode is: %d\n", size_table_inode);
-
-  return 0;
 }
