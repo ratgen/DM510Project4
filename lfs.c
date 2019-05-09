@@ -24,20 +24,12 @@ int writeblock(void* buf, int block_id, size_t size)
 	{
 		return -EINVAL;
 	}
-	FILE* fp = fopen(DISKNAME, "r+");
-  if(!fp)
-  {
-     return -EINVAL;
-  }
-
 	int offset = 512*block_id;
-	fseek(fp, offset, SEEK_SET);
-	if(fwrite(buf, size, 1, fp) != 1)
+	fseek(file_system, offset, SEEK_SET);
+	if(fwrite(buf, size, 1, file_system) != 1)
   {
-    fclose(fp);
 		return -EAGAIN;
 	}
-	fclose(fp);
 	return size;
 }
 
@@ -53,20 +45,12 @@ int readblock(void* buf, int block_id, size_t size)
 	{
 		return -EINVAL;
 	}
-	FILE* fp = fopen(DISKNAME, "r+");
-  if(!fp)
-  {
-    return -EINVAL;
-  }
 	int offset = 512*block_id;
-  fseek(fp, offset, SEEK_SET);
-	res = fread(buf, size, 1, fp);
-  if(res != 1)//fseek positions the stream
+  fseek(file_system, offset, SEEK_SET);
+  if(fread(buf, size, 1, file_system) != 1)
   {
-		fclose(fp);
     return -EAGAIN;
   }
-	fclose(fp);
 	return size;
 }
 
@@ -406,7 +390,7 @@ int main( int argc, char *argv[] ) {
     //the file must not exist, a new one is created
     file_system = fopen("file", "w");
     fclose(file_system);
-    file_system = fopen("file", "r+b")
+    file_system = fopen("file", "r+b");
   }
 	init_volume(20480, 512, 30);
 	fuse_main( argc, argv, &lfs_oper ); // Mounts the file system, at the mountpoint given
