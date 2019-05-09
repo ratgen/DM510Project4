@@ -1,6 +1,10 @@
 #include "dir.h"
 #include "lfs.h"
 
+
+  // void* readblock(int block_id, size_t size);
+  // struct linkedlist_dir *temp_dir = (*linkedlist_dir) readblock(2, LINKEDLIST_SIZE);
+
 /*
 *  /path/path1 path2/file
 */
@@ -27,7 +31,7 @@ int writeblock(void* buf, int block_id, size_t size)
 	FILE* fp = fopen(DISKNAME, "r+");
   if(!fp)
   {
-    return -EINVAL;
+     return -EINVAL;
   }
 
 	int offset = 512*block_id;
@@ -35,14 +39,15 @@ int writeblock(void* buf, int block_id, size_t size)
 
 	fseek(fp, offset, SEEK_SET);
 	// printf("writeblock : About to fwrite\n");
-
-	if(fwrite(buf, size, 1, fp) != 1){
+	if(fwrite(buf, size, 1, fp) != 1)
+  {
 		// printf("writeblock : fwrite failed\n");
-		fclose(fp);
+    fclose(fp);
 		return -EAGAIN;
 	}
 	// printf("writeblock : Done fwrite\n");
 	fclose(fp);
+  // printf("%s\n", "closed file pointer");
 	return size;
 }
 
@@ -92,59 +97,40 @@ int delete_block()
 	return 0;
 }
 
-int init_inode(int block_id)
+int init_inode(int block_id, int max_inode)
 {
+
 	struct inode_page *temp_inode_page = malloc(INODE_PAGE_SIZE);
 	if (!temp_inode_page)
 	{
 		return -ENOMEM;
 	}
-	temp_inode_page->free_ids = 10;
-	temp_inode_page->next_page = 0;
-	// printf("init inode : about to write inode\n");
-	if (writeblock(temp_inode_page, block_id, INODE_PAGE_SIZE) < 0)
-	{
-		free(temp_inode_page);
-		return -ENOMEM;
-	}
-	// printf("init inode : done writing inode\n");
+  int pages =(int) ceil(max_inode/7);
+
+  int last_page = block_id+pages;
+  for (int i = block_id; i < last_page+1; i++) {
+
+    if (i = last_page)
+    {
+        temp_inode_page->next_page = 0;
+    }
+    else
+    {
+      temp_inode_page->next_page = i;
+    }
+
+  	temp_inode_page->free_ids = 7;
+  	// printf("init inode : about to write inode\n");
+  	if (writeblock(temp_inode_page, block_id, INODE_PAGE_SIZE) < 0)
+  	{
+  		return -ENOMEM;
+  	}
+  }
 
 	free(temp_inode_page);
-	return 0;
+	return pages;
 }
 
-int init_volume(int nblocks, int nblock_size, int max_entries)
-{
-	// printf("Doing init volume.\n");
-	struct volume_control *disk = malloc(sizeof(struct volume_control));
-	if (!disk)
-	{
-		return -ENOMEM;
-	}
-	disk->blocks =nblocks;
-	disk->block_size = nblock_size;
-  disk->max_file_entries = max_entries;
-
-	// printf("about to init inode.\n");
-	init_inode(3);
-	// printf("about to init head.\n");
-	init_head(2, 1);
-	// printf("Done init both.\n");
-
-	// printf("\ntrying to read root attrs\n");
-	struct linkedlist_dir *temp = malloc(LINKEDLIST_SIZE);
-	readblock(temp, 2, LINKEDLIST_SIZE);
-	// printf("Name is %s and size is %d\n", temp->name, temp->name_length);
-	// printf("type is %d, next is %d and prev is %d\n\n", temp->type, temp->next, temp->prev);
-	return 0;
-}
-
-/*
-	lowest_inode_id = 25+1
-	inode_ids p1 : 1  2  3  4  5  6  7  8  9  10 | free_ids : 0 | next_page = p2
-	inode_ids p2 : 11 12 13 14 15 16 17 18 19 20 | free_ids : 0 | next_page = p3
-	inode_ids p3 : 21 22 23 24 25    27 28 29 30 | free_ids : 1 | next_page = NULL
-*/
 struct volume_control *get_volume_control()
 {
 	struct volume_control *volume_table = malloc(VOLUME_CONTROL_SIZE);
@@ -158,6 +144,158 @@ struct volume_control *get_volume_control()
 		return NULL;
 	}
 	return volume_table;
+}
+
+int get_free_block()
+{
+  struct volume_control *table = get_volume_control();
+  if (!table)
+  {
+    return -EFAULT;
+  }
+  if (table->free_block_count == 0)
+  {
+    free(table);
+    return -ENOSPC;
+  }
+
+	int freeblock = 0;
+
+  struct disk_block *temp_block = malloc(DISK_BLOCK_SIZE);
+  if (!temp_block)
+  {
+    return -ENOMEM;
+  }
+
+
+  if (readblock(temp_block, 3, DISK_BLOCK_SIZE))
+  {
+    free(temp_block);
+    return -EFAULT;
+  }
+
+  while (freeblock = 0)
+  {
+    for (int i = 0; i < 508; i++) {
+      if (strcmp(temp_block->data[i], "0") == 0)
+      {
+        freeblock = i;
+        break;
+      }
+    }
+  }
+  free(temp_block);
+  table->free_block_count--;
+  if (writeblock(table, 0, sizeof(struct volume_control)) < 0)
+  {
+    return -EFAULT;
+  }
+
+  return freeblock;
+}
+
+int init_byte_map(int block_id, int free_blocks)
+{
+  struct disk_block *node = malloc(sizeof(DISK_BLOCK_SIZE));
+  if(!node)
+  {
+    return -ENOMEM;
+  }
+
+  for(int i = 0; i < 508; i++)
+  {
+    node->data[i] = "0";
+  }
+  // 3 + 41 44
+  printf("Free blocks %d\n", free_blocks);
+  int pages = (int) ceil((double) free_blocks / (double)508);
+  printf("Cast int is : %d\n", pages);
+
+  int last_block = block_id + pages; // last memory block we need
+  for(int i = block_id ; i < last_block + 1; i++)
+  {
+    printf("%s %d\n", "looping time:", i);
+    if (i == last_block)
+    {
+      node->next_block = 0;
+    }
+    else
+    {
+      node->next_block = i+1;
+    }
+    printf("%s\n", "writing");
+    writeblock(node, i, DISK_BLOCK_SIZE);
+  }
+  printf("After loop : %d\n", pages);
+  // update allocated
+
+  if (readblock(node, block_id, BLOCKSIZE) < 0 )
+  {
+    free(node);
+    return -EFAULT;
+  }
+  for (int i = 0; i < last_block+1; i++) {
+    node->data[i] = "1";
+  }
+  return pages;
+}
+
+int init_volume(int nblocks, int nblock_size, int max_entries)
+{
+  printf("init_volume | start init \n");
+	// printf("Doing init volume.\n");
+  int blocks_used = 1; // for volume table
+
+	struct volume_control *disk = malloc(sizeof(struct volume_control));
+	if (!disk)
+	{
+		return -ENOMEM;
+	}
+	disk->blocks = nblocks-1;
+	disk->block_size = nblock_size;
+  disk->max_file_entries = max_entries;
+  disk->free_block_count = disk->blocks; //exclude vol control block, dir head and init inode
+
+	// printf("about to init inode.\n");
+  int res = 0;
+
+  res = init_inode(2, max_entries);
+  if (res < 0)
+  {
+    free(disk);
+    return res;
+  }
+  else // append blocks used
+  {
+      blocks_used+=res;
+  }
+	// printf("about to init head.\n");
+  ino_t root_inode = get_inode_id();
+  res = init_head(1, root_inode);
+  if (res < 0)
+  {
+    free(disk);
+    return -EFAULT;
+  }
+  blocks_used += res;
+
+	// printf("Done init both.\n");
+
+  res = init_byte_map(blocks_used, disk->free_block_count);
+  if (res < 0)
+  {
+    free(disk);
+    return -EFAULT;
+  }
+  else
+  {
+    blocks_used += res;
+  }
+  disk->free_block_count -= blocks_used;
+
+	writeblock(disk, 0, sizeof(struct volume_control));
+  printf("init_volume | end init \n");
+	return 0;
 }
 
 ino_t get_inode_id()
@@ -214,12 +352,16 @@ int get_inode_page(struct inode_page *buffer, ino_t id)
 // Gets the page that contains the inode
 {
 	struct volume_control *table = get_volume_control();
+  if (table) {
+    return -EFAULT;
+  }
 
 	struct inode_page *temp_inode_page = malloc(INODE_PAGE_SIZE);
 	if (!temp_inode_page) {
 		free(table);
 		return -ENOMEM;
 	}
+
 	if(readblock(temp_inode_page, table->inode_block, INODE_PAGE_SIZE) < 0)
 	{
 		free(table);
@@ -227,15 +369,9 @@ int get_inode_page(struct inode_page *buffer, ino_t id)
 		return -EFAULT;
 	}
 
-	ino_t max_page_inode = 5;
+	ino_t max_page_inode = 7;
 	while (id > max_page_inode)
 	{
-		if (temp_inode_page->next_page == 0) // no next page
-		{
-			free(table);
-			free(temp_inode_page);
-			return -EFAULT;
-		}
 		if (readblock(temp_inode_page, temp_inode_page->next_page, INODE_PAGE_SIZE) < INODE_PAGE_SIZE)
 		{
 			return -EFAULT;
@@ -260,65 +396,33 @@ int delete_inode(ino_t id)
 			free(temp_inode_page);
 			return -EAGAIN;
 	}
-	ino_t inode_page_id = id % 5;
+	ino_t inode_page_id = id % 7;
 
 	// clear inode array index
 	memset(&temp_inode_page->inodes[inode_page_id], 0, INODE_PAGE_SIZE);
 
+  temp_inode_page->free_ids++;
 	free(temp_inode_page);
 	return 0;
 }
 
-ino_t update_inode(int size){
-	ino_t id = get_inode_id();
-
-	struct inode_page *temp_inode_page = malloc(INODE_PAGE_SIZE);
-	if (!temp_inode_page) {
-		return -ENOMEM;
-	}
-
-	ino_t index = get_inode_page(temp_inode_page, id);
-	if (index < 0)
-	{
-		return -EAGAIN;
-	}
-	struct inode *temp_inode = &temp_inode_page->inodes[index];
-	temp_inode->size = 0;
-
-
-	return (ino_t) 0;
-}
-
 int fs_getattr( const char *path, struct stat *stbuf ) {
-	// printf("getattr : start\n");
-	// printf("getattr: (path=%s)\n", path);
-
-	//memset(stbuf, 0, sizeof(struct stat)); // empty the stat struct
-
-	// printf("getattr : about to allocate root.\n");
   struct linkedlist_dir *root = malloc(LINKEDLIST_SIZE);
 	if (!root)
 	{
-		// printf("getattr : failed to allocate root\n");
 		return -ENOMEM;
 	}
 	if (readblock(root, 2, LINKEDLIST_SIZE) < 0)
 	{
-		// printf("getattr : failed to read root\n");
 		free(root);
 		return -EFAULT;
 	}
 
-	// printf("getattr : done allocating.\n");
-	// printf("getattr : About to get path.\n");
-
 	struct linkedlist_dir *node = get_link(path);
   if(!node)
   {
-		// printf("getattr : failed getting path (%s)\n", path);
     return -ENOENT;
   }
-	// printf("getattr : Done getting path.\n");
 
   if(node->type == 0)
   {
@@ -329,16 +433,14 @@ int fs_getattr( const char *path, struct stat *stbuf ) {
     stbuf->st_mode = S_IFDIR; //is directory
   }
 
-	// printf("getattr : about to allocare for inode page.\n");
   struct inode_page *page = malloc(INODE_PAGE_SIZE);
   get_inode_page(page, node->file_inode);
-  int page_num = node->file_inode % 5; //get the correct index  of the inode on the current page
+  int inode_index = node->file_inode % 7; //get the correct index  of the inode on the current page
   free(node);
 
-	// printf("getattr : setting inode up.\n");
-  stbuf->st_size = page->inodes[page_num].size;
-  stbuf->st_atim = page->inodes[page_num].atime;
-  stbuf->st_mtim = page->inodes[page_num].mtime;
+  stbuf->st_size = page->inodes[inode_index].size;
+  stbuf->st_atim = page->inodes[inode_index].atime;
+  stbuf->st_mtim = page->inodes[inode_index].mtime;
 
 	return 0;
 }
@@ -367,12 +469,6 @@ int fs_readdir( const char *path,
 
 	filler(buf, ".", NULL, 0);
   filler(buf, "..", NULL, 0);
-
-	if(strcmp(basename(path), "/") == 0){
-
-		filler(buf, "test", NULL , 0);
-		return 0;
-	}
 
 	// while(listlink)
   // {
@@ -424,13 +520,28 @@ int fs_write( const char *path,
 
 int fs_release(const char *path, struct fuse_file_info *fi) {
 
-	// printf("release: (path=%s)\n", path);
+	printf("release: (path=%s)\n", path);
+
 	return 0;
 }
 
 int fs_mkdir(const char *path,
 	 					 mode_t mode)
 {
+    printf("mkdir : path (%s)\n", path);
+
+     ino_t inode_id = get_inode_id();
+     if (inode_id < 0)
+     {
+       return (int) inode_id;
+     }
+
+     int blockid = get_free_block();
+     if (blockid < 0)
+     {
+       return blockid;
+     }
+    add_entry(2, path, inode_id, 1, blockid);
   return 0;
 }
 int fs_rmdir(const char *path, mode_t mode){
@@ -448,6 +559,7 @@ int fs_truncate(const char *path, off_t size, struct fuse_file_info *fi){
 
 int main( int argc, char *argv[] ) {
 	// printf("Running lfs.\n");
+  printf("main func\n");
 	init_volume(20480, 512, 30);
 	fuse_main( argc, argv, &lfs_oper ); // Mounts the file system, at the mountpoint given
 

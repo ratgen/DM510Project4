@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include <libgen.h>
 
 
@@ -10,6 +11,7 @@
 #define BLOCKSIZE 512
 #define INODE_PAGE_SIZE sizeof(struct inode_page)
 #define VOLUME_CONTROL_SIZE sizeof(struct volume_control)
+#define DISK_BLOCK_SIZE sizeof(struct disk_block)
 
 int fs_getattr( const char *, struct stat * );
 int fs_readdir( const char *, void *, fuse_fill_dir_t, off_t, struct fuse_file_info * );
@@ -46,7 +48,7 @@ static struct fuse_operations lfs_oper = {
 
 struct disk_block{
 	int next_block;
-	char* data; // blocksize -4 for the next block pointer
+	char data[508]; // blocksize -4 for the next block pointer
 };
 
 struct inode{
@@ -59,16 +61,16 @@ struct inode{
 };
 
 struct inode_page{ // fills out a block of memory (48*10+16)
-  struct inode inodes[5];
+  struct inode inodes[7];
+  int size;
 	int free_ids;
   int next_page; // use block number here
 };
 
 struct volume_control{
   int blocks;
-  int free_blocks;
+  int free_block_count;
   int block_size;
-  int free_block;
 	int inode_block;
 	int max_file_entries;
 };

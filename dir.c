@@ -21,6 +21,7 @@
   head->type = 1;
   head->file_inode = finode;
   head->next = 0;
+  head->block = block_id;
 
   // printf("init head : About to write block\n");
   if (writeblock(head, block_id, LINKEDLIST_SIZE) < 0 )
@@ -39,8 +40,23 @@
   return 0;
 }
 
- int add_entry(int prev_linkedlist_id, char* fname, ino_t finode, int ftype, int block_id)
+ int add_entry(int root_block_id, const char* fname, ino_t finode, int ftype, int block_id)
 {
+  struct linkedlist_dir *tail_node = malloc(LINKEDLIST_SIZE);
+  if (!tail_node)
+  {
+    return -ENOMEM;
+  }
+  if(readblock(tail_node, root_block_id, LINKEDLIST_SIZE) < 0)
+  {
+    free(tail_node);
+    return -EFAULT;
+  }
+  while(tail_node->next != 0)
+  {
+    readblock(tail_node, tail_node->next, LINKEDLIST_SIZE);
+  }
+
   struct linkedlist_dir *entry = malloc(LINKEDLIST_SIZE);
   if (!entry)
   {
@@ -52,36 +68,25 @@
   entry->file_inode = finode;
   entry->type = ftype;
   entry->next = 0;
-  entry->prev = prev_linkedlist_id;
+  entry->prev = tail_node->block;
 
   if (writeblock(entry, block_id, LINKEDLIST_SIZE) < 0)
   {
     free(entry);
     return -EFAULT;
   }
+  free(entry);
 
-  // update prev linkedlist link
-  struct linkedlist_dir *temp_prev = malloc(LINKEDLIST_SIZE);
-  if(!temp_prev)
-  {
-    return -ENOMEM;
-  }
-  if (readblock(temp_prev, prev_linkedlist_id, LINKEDLIST_SIZE) < 0)
-  {
-    free(temp_prev);
-    return -EFAULT;
-  }
-
-  temp_prev->next = block_id; // update linked
+  tail_node->next = block_id; // update linked
 
   // write it back to disk
-  if (writeblock(temp_prev, prev_linkedlist_id, LINKEDLIST_SIZE) < 0)
+  if (writeblock(tail_node, tail_node->block, LINKEDLIST_SIZE) < 0)
   {
-    free(temp_prev);
-    return -EFAULT;
+    free(tail_node);
+    return -EAGAIN; //indicates we need to delete entry already written
   }
 
-  free(temp_prev);
+  free(tail_node);
   return 0;
 }
 
