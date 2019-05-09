@@ -6,7 +6,6 @@
 #include <math.h>
 #include <libgen.h>
 
-
 #define DISKNAME "file"
 #define BLOCKSIZE 512
 #define INODE_PAGE_SIZE sizeof(struct inode_page)
@@ -80,5 +79,3 @@ int delete_inode(ino_t id);
 int delete_block();
 int writeblock(void* buf, int block_id, size_t size);
 int readblock(void* buf, int block_id, size_t size);
-
-struct inode create_inode(size_t size);

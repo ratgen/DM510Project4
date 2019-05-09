@@ -1,5 +1,5 @@
 GCC = gcc
-SOURCES = lfs.c dir.c
+SOURCES = lfs.c dir.c inode.c
 OBJS := $(patsubst %.c,%.o,$(SOURCES))
 CFLAGS = -O2 -Wall -D_FILE_OFFSET_BITS=64 -DFUSE_USE_VERSION=25
 
