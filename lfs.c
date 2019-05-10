@@ -92,18 +92,13 @@ int get_free_block()
     free(temp_block);
     return -EFAULT;
   }
-  printf("priting first char of temp \n");
-  printf("%c\n", temp_block->data[46]);
-  printf("%c\n", temp_block->data[47]);
-  printf("%c\n", temp_block->data[48]);
-  printf("%c\n", temp_block->data[49]);
 
   while (freeblock == 0)
   {
     printf("%s\n", "loop");
     for (int i = 0; i < 508; i++) {
-      printf("%d\n", i);
-      if (strcmp(temp_block->data[i], '0') == 0)
+
+      if (temp_block->data[i] == '0')
       {
         printf("%d\n", i);
         freeblock = i;
@@ -132,15 +127,11 @@ int init_byte_map(int block_id, int free_blocks)
   {
     node->data[i] = '0';
   }
-  // 3 + 41 44
-  printf("Free blocks %d\n", free_blocks);
   int pages = (int) ceil((double) free_blocks / (double)508);
-  printf("Cast int is : %d\n", pages);
 
   int last_block = block_id + pages; // last memory block we need
   for(int i = block_id ; i < last_block + 1; i++)
   {
-    printf("%s %d\n", "looping time:", i);
     if (i == last_block)
     {
       node->next_block = 0;
@@ -149,19 +140,15 @@ int init_byte_map(int block_id, int free_blocks)
     {
       node->next_block = i+1;
     }
-    printf("%s\n", "writing");
     writeblock(node, i, DISK_BLOCK_SIZE);
   }
-  printf("After loop : %d\n", pages);
-  // update allocated
 
   node = readblock(3, DISK_BLOCK_SIZE);
 
-  for (int i = 0; i < last_block; i++) {
+  for (int i = 0; i < last_block +1; i++) {
     node->data[i] = '1';
   }
   writeblock(node, 3, DISK_BLOCK_SIZE);
-
 
   return pages;
 }
@@ -224,6 +211,7 @@ int init_volume(int nblocks, int nblock_size, int max_entries)
   printf("init_volume | end init \n");
 	return 0;
 }
+
 int fs_getattr( const char *path, struct stat *stbuf ) {
   struct linkedlist_dir *root =  readblock(1, LINKEDLIST_SIZE);
 	if (root < 0)
@@ -281,17 +269,22 @@ int fs_readdir( const char *path,
 	filler(buf, ".", NULL, 0);
   filler(buf, "..", NULL, 0);
 
-	// while(listlink)
-  // {
-  //   char name_buf[220];
-  //   strcpy(name_buf, listlink->name);
-	//
-  //   if(strcmp(strcat(dirname(name_buf),"/"), path) == 0)
-  //   {
-  //     filler(buf, basename(listlink->name), NULL, 0);
-  //   }
-  //   readblock(listlink, listlink->next, LINKEDLIST_SIZE);
-  // }
+  while(listlink)
+  {
+    char name_buf[220];
+    strcpy(name_buf, listlink->name);
+    printf("%s %s paht: %s\n", "comparing", name_buf, path);
+    if(strcmp(strcat(dirname(name_buf),"/"), path) == 0)
+    {
+      filler(buf, basename(listlink->name), NULL, 0);
+    }
+     if(listlink->next == 0)
+    {
+      printf("%s\n", "break");
+      break;
+    }
+    listlink = readblock(listlink->next, LINKEDLIST_SIZE);
+  }
 
 	return 0;
 }

@@ -42,7 +42,8 @@
 
  int add_entry(int root_block_id, const char* fname, ino_t finode, int ftype, int block_id)
 {
-  struct linkedlist_dir *tail_node =  readblock(root_block_id, LINKEDLIST_SIZE);
+  printf("adding name %s, with ino: %d, type: %d, id: %d\n", fname, finode, ftype, block_id);
+  struct linkedlist_dir *tail_node = readblock(root_block_id, LINKEDLIST_SIZE);
   if(tail_node < 0)
   {
     return -EFAULT;
@@ -64,6 +65,7 @@
   entry->type = ftype;
   entry->next = 0;
   entry->prev = tail_node->block;
+  entry->block = block_id;
 
   if (writeblock(entry, block_id, LINKEDLIST_SIZE) < 0)
   {
@@ -73,6 +75,10 @@
   free(entry);
 
   tail_node->next = block_id; // update linked
+  printf("next block is %d\n", tail_node->next);
+  printf("current block is %d\n", tail_node->block);
+
+
 
   // write it back to disk
   if (writeblock(tail_node, tail_node->block, LINKEDLIST_SIZE) < 0)
@@ -80,6 +86,10 @@
     free(tail_node);
     return -EAGAIN; //indicates we need to delete entry already written
   }
+
+  entry = readblock(1, LINKEDLIST_SIZE);
+  printf("entry next %d\n", entry->next );
+
 
   free(tail_node);
   return 0;
@@ -142,13 +152,18 @@ struct linkedlist_dir *get_link(const char* path)
   {
     return -EFAULT;
   }
+  printf("node name %s\n", node->name);
+  printf("node name %d\n", node->next);
+
   while(strcmp(node->name, path) != 0)
   {
     if(node->next == 0)
     {
+      printf("%s\n", "the is no next node to be found");
       return NULL;
     }
     node = readblock(node->next, LINKEDLIST_SIZE);
+    printf("%s\n", node->name);
     if (node < 0)
     {
       return -EFAULT;
