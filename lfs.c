@@ -122,9 +122,9 @@ unsigned int get_block()
   union lfs_block* bitmap_block;
   unsigned int free_bank = -1;
   int k;
-  for (k = 0; k < 5; k++) {
+  for (k = 0; k < 5; k++) {   					//THIS CAN BE DONE WITH WHILE?
     bitmap_block = readblock(k);
-    for (size_t i = 0; i < 512; i++)
+    for (size_t i = 0; i < 512; i++)			//THIS CAN BE DONE WITH WHILE?
     {
       if(bitmap_block->data[i] < 255)
       {
@@ -172,6 +172,25 @@ int free_block(unsigned int block)
   memcpy(&bitmap_block->data[bank], &temp_byte, sizeof(char));
   writeblock(bitmap_block, page);
   return 0;
+}
+
+int setup()
+{
+	union lfs_block* disk_block = malloc(sizeof(union lfs_block));
+
+	disk_block->inode.parent = 0;
+	disk_block->inode.type = 1;
+
+	disk_block->inode.data[0] = get_block(); //maybe memcpy instead
+	union lfs_block *name = malloc(sizeof(lfs_block));
+	memcpy(name,"/", sizeof(char));
+	writeblock(&name->data, disk_block->inode.data[0]);
+
+	clock_gettime(CLOCK_REALTIME, &disk_block->inode.a_time);
+	clock_gettime(CLOCK_REALTIME, &disk_block->inode.m_time);
+
+	writeblock(disk_block, 5);
+	return 0;
 }
 
 int lfs_getattr( const char *path, struct stat *stbuf )
@@ -231,20 +250,14 @@ int main( int argc, char *argv[] )
   file_system = fopen("file", "r+");
 
   init_bitmap();
+  setup();
 
-  int block = get_block();
-  printf("block: %d\n", block);
-  printf("block: %d\n", get_block());
+  union lfs_block* k = readblock(5);
 
-  free_block(block);
+	char data[512];
 
-  printf("block: %d\n", get_block());
-  printf("block: %d\n", get_block());
-
-  //union lfs_block* k = readblock(0);
-
-  //memcpy(b->data, &data, 8);
-
+  memcpy(&data, &k->inode.data[0], 8);
+	printf("%s\n", data);
 
 	//fuse_main( argc, argv, &lfs_oper );
 
