@@ -45,7 +45,7 @@ typedef union lfs_block  //with union block can either be data or inode_t
 {
   inode_t inode;
   unsigned char data[512];
-};
+}lfs_block ;
 
 void print_unsigned_binary(unsigned int n)
 {
@@ -111,28 +111,60 @@ int init_bitmap()
   for (size_t i = 0; i < 6; i++) {
      temp_byte |= 1 << i;
   }
-  memcpy(bitmap_block->data[0], temp_byte, sizeof(char));
+  memcpy(&bitmap_block->data[0], &temp_byte, sizeof(char));
   writeblock(bitmap_block, 0);
+
+  return 0;
 }
 
 unsigned int get_block()
 {
+  printf("%s\n", "entering get block");
   union lfs_block* bitmap_block;
-  unsigned int free_block;
-  int k = 0;
-  while(free_block != 0){
+  unsigned int free_block = -1;
+  int k;
+  for (k = 0; k < 5; k++) {
     bitmap_block = readblock(k);
     for (size_t i = 0; i < 512; i++)
     {
-      if(bitmap_block->data[i] != 255)
+      if(bitmap_block->data[i] < 255)
       {
-        free_block = i + (k+1)*512;
+        printf("page %d, block %d\n",k, i);
+        free_block = i;
         break;
       }
+     }
+    if(free_block != -1)
+    {
+       break;
     }
-    k += 1;
   }
-  return free_block;
+
+  //the right bank has been obtained, now find the correct bit
+  unsigned char temp_byte = 0;
+
+  memcpy(&temp_byte, &bitmap_block->data[free_block], sizeof(char));
+  print_unsigned_binary(temp_byte);
+  printf(" \n");
+
+  int bit = 0;
+  for (size_t i = 0; i < 8; i++) {
+    bit = (temp_byte >> i) & 1U;
+     if(bit == 0)
+     {
+      bit = i;
+      temp_byte |= 1 << bit;
+      break;
+    }
+  }
+
+  print_unsigned_binary(temp_byte);
+  printf(" \n");
+
+  memcpy(&bitmap_block->data[free_block], &temp_byte, sizeof(char));
+  writeblock(bitmap_block, k);
+
+  return k*512 + free_block*8 + bit;
 }
 
 int free_block(unsigned int block)
@@ -145,12 +177,13 @@ int free_block(unsigned int block)
   //Read the bank, to be manipulated
   union lfs_block* bitmap_block = readblock(page);
   unsigned char temp_byte;
-  memcpy(temp_byte, bitmap_block->data[bank], sizeof(char));
+  memcpy(&temp_byte, &bitmap_block->data[bank], sizeof(char));
   //Toggle the bit
   temp_byte ^= (1UL << (block % 8));
   //Copy the bank back, and write it to the disk
-  memcpy(bitmap_block->data[bank], temp_byte, sizeof(char));
+  memcpy(&bitmap_block->data[bank], &temp_byte, sizeof(char));
   writeblock(bitmap_block, page);
+  return 0;
 }
 
 int lfs_getattr( const char *path, struct stat *stbuf )
@@ -211,7 +244,16 @@ int main( int argc, char *argv[] )
 
   init_bitmap();
 
-  union lfs_block* k = readblock(0);
+  printf("block: %d\n", get_block());
+  printf("block: %d\n", get_block());
+  printf("block: %d\n", get_block());
+  printf("block: %d\n", get_block());
+  printf("block: %d\n", get_block());
+  printf("block: %d\n", get_block());
+  printf("block: %d\n", get_block());
+
+
+  //union lfs_block* k = readblock(0);
 
   //memcpy(b->data, &data, 8);
 

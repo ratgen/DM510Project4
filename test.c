@@ -36,8 +36,7 @@ int main(){
   ja ^= 1UL << 6;
   ja ^= (1UL << 1);
 
-  bin(ja);
-
+ 
   if(ja < 255){
     printf("%s\n", "ja");
   }
