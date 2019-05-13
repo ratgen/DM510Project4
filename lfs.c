@@ -119,8 +119,8 @@ int init_bitmap()
 
 unsigned int get_block()
 {
-   union lfs_block* bitmap_block;
-  unsigned int free_block = -1;
+  union lfs_block* bitmap_block;
+  unsigned int free_bank = -1;
   int k;
   for (k = 0; k < 5; k++) {
     bitmap_block = readblock(k);
@@ -128,20 +128,18 @@ unsigned int get_block()
     {
       if(bitmap_block->data[i] < 255)
       {
-         free_block = i;
+         free_bank = i;
         break;
       }
      }
-    if(free_block != -1)
+    if(free_bank != -1)
     {
        break;
     }
   }
-
   //the right bank has been obtained, now find the correct bit
   unsigned char temp_byte = 0;
-
-  memcpy(&temp_byte, &bitmap_block->data[free_block], sizeof(char));
+  memcpy(&temp_byte, &bitmap_block->data[free_bank], sizeof(char));
 
   int bit = 0;
   for (size_t i = 0; i < 8; i++) {
@@ -153,18 +151,15 @@ unsigned int get_block()
       break;
     }
   }
-
-  memcpy(&bitmap_block->data[free_block], &temp_byte, sizeof(char));
+  memcpy(&bitmap_block->data[free_bank], &temp_byte, sizeof(char));
   writeblock(bitmap_block, k);
-
-  return k*4096 + free_block*8 + bit;
+  return k*4096 + free_bank*8 + bit;
 }
 
 int free_block(unsigned int block)
 {
   //Floor division to find the correct page
   int page = block/4096;
-
   //Find the correct indice in the array
   int bank = (block % 4096)/8;
   //Read the bank, to be manipulated
