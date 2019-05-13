@@ -45,7 +45,14 @@ typedef union lfs_block  //with union block can either be data or inode_t
 {
   inode_t inode;
   unsigned char data[512];
-} block;
+};
+
+void print_unsigned_binary(unsigned int n)
+{
+  if (n > 1)
+  print_unsigned_binary(n/2);
+  printf("%d", n % 2);
+}
 
 int writeblock(void* buf, int block)
 {
@@ -92,7 +99,62 @@ void* readblock(int block)
 	return buffer;
 }
 
-int lfs_getattr( const char *path, struct stat *stbuf ) {
+int init_bitmap()
+{
+  union lfs_block* bitmap_block = malloc(sizeof(union lfs_block));
+  //Write empty blocks to the 2nd through fifth blocks
+  for (size_t i = 1; i < 5; i++) {
+    writeblock(bitmap_block, i);  //The first 5 blocks are allocated to the bitmap
+  }
+  //Reserve the first to 6th block for, (bitmap * 5, root inode)
+  unsigned char temp_byte = 0;
+  for (size_t i = 0; i < 6; i++) {
+     temp_byte |= 1 << i;
+  }
+  memcpy(bitmap_block->data[0], temp_byte, sizeof(char));
+  writeblock(bitmap_block, 0);
+}
+
+unsigned int get_block()
+{
+  union lfs_block* bitmap_block;
+  unsigned int free_block;
+  int k = 0;
+  while(free_block != 0){
+    bitmap_block = readblock(k);
+    for (size_t i = 0; i < 512; i++)
+    {
+      if(bitmap_block->data[i] != 255)
+      {
+        free_block = i + (k+1)*512;
+        break;
+      }
+    }
+    k += 1;
+  }
+  return free_block;
+}
+
+int free_block(unsigned int block)
+{
+  //Floor division to find the correct page
+  int page = block/4096;
+
+  //Find the correct indice in the array
+  int bank = (block % 4096)/8;
+  //Read the bank, to be manipulated
+  union lfs_block* bitmap_block = readblock(page);
+  unsigned char temp_byte;
+  memcpy(temp_byte, bitmap_block->data[bank], sizeof(char));
+  //Toggle the bit
+  temp_byte ^= (1UL << (block % 8));
+  //Copy the bank back, and write it to the disk
+  memcpy(bitmap_block->data[bank], temp_byte, sizeof(char));
+  writeblock(bitmap_block, page);
+}
+
+int lfs_getattr( const char *path, struct stat *stbuf )
+{
 	int res = 0;
 	printf("getattr: (path=%s)\n", path);
 
@@ -142,16 +204,17 @@ int lfs_release(const char *path, struct fuse_file_info *fi) {
 	return 0;
 }
 
-int main( int argc, char *argv[] ) {
+
+int main( int argc, char *argv[] )
+{
   file_system = fopen("file", "r+");
-  printf("size: %d\n", sizeof(inode_t));
 
-  block* b = malloc(sizeof(block));
-  strcpy(b->data, "This is a thing");
-  writeblock(b, 0);
+  init_bitmap();
 
-  block* c = readblock(0);
-  printf("%s\n", c->data);
+  union lfs_block* k = readblock(0);
+
+  //memcpy(b->data, &data, 8);
+
 
 	//fuse_main( argc, argv, &lfs_oper );
 
