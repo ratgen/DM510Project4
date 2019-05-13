@@ -119,8 +119,7 @@ int init_bitmap()
 
 unsigned int get_block()
 {
-  printf("%s\n", "entering get block");
-  union lfs_block* bitmap_block;
+   union lfs_block* bitmap_block;
   unsigned int free_block = -1;
   int k;
   for (k = 0; k < 5; k++) {
@@ -129,8 +128,7 @@ unsigned int get_block()
     {
       if(bitmap_block->data[i] < 255)
       {
-        printf("page %d, block %d\n",k, i);
-        free_block = i;
+         free_block = i;
         break;
       }
      }
@@ -144,8 +142,6 @@ unsigned int get_block()
   unsigned char temp_byte = 0;
 
   memcpy(&temp_byte, &bitmap_block->data[free_block], sizeof(char));
-  print_unsigned_binary(temp_byte);
-  printf(" \n");
 
   int bit = 0;
   for (size_t i = 0; i < 8; i++) {
@@ -157,9 +153,6 @@ unsigned int get_block()
       break;
     }
   }
-
-  print_unsigned_binary(temp_byte);
-  printf(" \n");
 
   memcpy(&bitmap_block->data[free_block], &temp_byte, sizeof(char));
   writeblock(bitmap_block, k);
@@ -244,11 +237,14 @@ int main( int argc, char *argv[] )
 
   init_bitmap();
 
-  for (size_t i = 0; i < 5000; i++) {
-    printf("block: %d\n", get_block());
+  int block = get_block();
+  printf("block: %d\n", block);
+  printf("block: %d\n", get_block());
 
-  }
+  free_block(block);
 
+  printf("block: %d\n", get_block());
+  printf("block: %d\n", get_block());
 
   //union lfs_block* k = readblock(0);
 
