@@ -47,12 +47,8 @@ typedef union lfs_block  //with union block can either be data or inode_t
   unsigned char data[512];
 } block;
 
-int writeblock(void* buf, int block, size_t size)
+int writeblock(void* buf, int block)
 {
-	if (size < 0 || size > 512)
-	{
-		return -EINVAL;
-	}
 	if (buf == NULL)
 	{
 		return -EINVAL;
@@ -63,25 +59,21 @@ int writeblock(void* buf, int block, size_t size)
 	}
 	int offset = 512*block;
 	fseek(file_system, offset, SEEK_SET);
-	if(fwrite(buf, size, 1, file_system) != 1)
+	if(fwrite(buf, 512, 1, file_system) != 1)
   {
 		return -EAGAIN;
 	}
-	return size;
+	return 1;
 }
 
-void* readblock(int block, size_t size)
+void* readblock(int block)
 // reads `size` bytes from disk and returns a void* pointer to the data
 {
-	if (size < 0 || size > 512)
-	{
-		return -EINVAL;
-	}
   if (block < 0)
 	{
 		return -EINVAL;
 	}
-  void* buffer = malloc(size);
+  void* buffer = malloc(sizeof(char) * 512);
   if(!buffer)
   {
     return -ENOMEM;
@@ -92,7 +84,7 @@ void* readblock(int block, size_t size)
     free(buffer);
     return -EAGAIN;
   }
-  if(fread(buffer, size, 1, file_system) != 1)
+  if(fread(buffer, 512, 1, file_system) != 1)
   {
     free(buffer);
     return -EAGAIN;
@@ -155,6 +147,11 @@ int main( int argc, char *argv[] ) {
   printf("size: %d\n", sizeof(inode_t));
 
   block* b = malloc(sizeof(block));
+  strcpy(b->data, "This is a thing");
+  writeblock(b, 0);
+
+  block* c = readblock(0);
+  printf("%s\n", c->data);
 
 	//fuse_main( argc, argv, &lfs_oper );
 
