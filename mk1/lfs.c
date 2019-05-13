@@ -97,7 +97,7 @@ int get_free_block()
   {
     printf("%s\n", "loop");
     for (int i = 0; i < 508; i++) {
-
+      printf("%d\n", i);
       if (temp_block->data[i] == '0')
       {
         printf("%d\n", i);
@@ -105,7 +105,7 @@ int get_free_block()
         break;
       }
     }
-  }
+}
   free(temp_block);
   table->free_block_count--;
   if (writeblock(table, 0, sizeof(struct volume_control)) < 0)
