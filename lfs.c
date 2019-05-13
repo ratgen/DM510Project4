@@ -164,7 +164,7 @@ unsigned int get_block()
   memcpy(&bitmap_block->data[free_block], &temp_byte, sizeof(char));
   writeblock(bitmap_block, k);
 
-  return k*512 + free_block*8 + bit;
+  return k*4096 + free_block*8 + bit;
 }
 
 int free_block(unsigned int block)
@@ -244,13 +244,10 @@ int main( int argc, char *argv[] )
 
   init_bitmap();
 
-  printf("block: %d\n", get_block());
-  printf("block: %d\n", get_block());
-  printf("block: %d\n", get_block());
-  printf("block: %d\n", get_block());
-  printf("block: %d\n", get_block());
-  printf("block: %d\n", get_block());
-  printf("block: %d\n", get_block());
+  for (size_t i = 0; i < 5000; i++) {
+    printf("block: %d\n", get_block());
+
+  }
 
 
   //union lfs_block* k = readblock(0);
