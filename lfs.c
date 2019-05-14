@@ -498,15 +498,30 @@ int lfs_open( const char *path, struct fuse_file_info *fi )
 
 int lfs_read( const char *path, char *buf, size_t size, off_t offset,
               struct fuse_file_info *fi ) {
-    printf("read: (path=%s)\n", path);
-	memcpy( buf, "Hello\n", 6 );
-	return 6;
+
+  printf("read: (path=%s)\n", path);
+  int org_offset = offset;
+
+  //we start writing from offset
+  int page = offset/512;
+  //read in page, copy from buf until
+
+  int num_pages = (int) ceil((double) size/512); //number of pages to write
+  for(int i = 0; i < num_pages; i++)
+  {
+    union lfs_block* data_page = readblock(page);
+    memcpy(&buf[offset - org_offset], &data_page->data[offset % 512], 512 - (offset % 512) );
+    offset += 512 - (offset % 512);
+    page += 1;
+  }
+  printf("%s\n", buf);
+  return offset - org_offset;
 }
 
 int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
               struct fuse_file_info *fi)
 {
-  int ogoffset = offset;
+  int org_offset = offset;
   int block = get_block_from_path(path);
   if(block < 0)
   {
@@ -541,13 +556,13 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
   for(int i = 0; i < num_pages; i++)
   {
     union lfs_block* data_page = readblock(page);
-    memcpy(&data_page->data[offset % 512], &buf, 512 - (offset % 512) );
+    memcpy(&data_page->data[offset % 512], &buf[offset - org_offset], 512 - (offset % 512) );
     writeblock(data_page->data, page);
     offset += 512 - (offset % 512);
     page += 1;
   }
 
-  return offset - ogoffset;
+  return offset - org_offset;
 }
 
 
