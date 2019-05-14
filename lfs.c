@@ -38,22 +38,21 @@ typedef struct lfs_inode //sizeof() = 512
   //chilren of folders are contained the in the data block
   unsigned char type;     //1 byte
   unsigned int size;  //4 bytes
+  unsigned int name_length;
   unsigned short data[236]; //array of block ids can hold 236*512 = 0.24 MB
 } inode_t;
-
 typedef union lfs_block  //with union block can either be data or inode_t
 {
   inode_t inode;
   unsigned char data[512];
-}lfs_block ;
 
+}lfs_block ;
 void print_unsigned_binary(unsigned int n)
 {
   if (n > 1)
   print_unsigned_binary(n/2);
   printf("%d", n % 2);
 }
-
 int writeblock(void* buf, int block)
 {
 	if (buf == NULL)
@@ -72,7 +71,6 @@ int writeblock(void* buf, int block)
 	}
 	return 1;
 }
-
 void* readblock(int block)
 // reads `size` bytes from disk and returns a void* pointer to the data
 {
@@ -98,7 +96,6 @@ void* readblock(int block)
   }
 	return buffer;
 }
-
 int init_bitmap()
 {
   union lfs_block* bitmap_block = malloc(sizeof(union lfs_block));
@@ -116,8 +113,7 @@ int init_bitmap()
 
   return 0;
 }
-
-unsigned int get_block()
+unsigned short get_block()
 {
   union lfs_block* bitmap_block;
   unsigned int free_bank = -1;
@@ -155,7 +151,6 @@ unsigned int get_block()
   writeblock(bitmap_block, k);
   return k*4096 + free_bank*8 + bit;
 }
-
 int free_block(unsigned int block)
 {
   //Floor division to find the correct page
@@ -173,7 +168,6 @@ int free_block(unsigned int block)
   writeblock(bitmap_block, page);
   return 0;
 }
-
 int setup()
 {
 	union lfs_block* disk_block = malloc(sizeof(union lfs_block));
@@ -181,14 +175,22 @@ int setup()
 	disk_block->inode.parent = 0;
 	disk_block->inode.type = 1;
 
-	disk_block->inode.data[0] = get_block(); //maybe memcpy instead
+  //Get block for the name of root node
+	disk_block->inode.data[0] = get_block(); //get first block
 	union lfs_block *name = malloc(sizeof(lfs_block));
-	memcpy(name,"/", sizeof(char));
+
+  //Insert name length into inode
+  disk_block->inode.name_length = strlen("/");
+  //Copy name of root to data block
+  memcpy(name,"/", sizeof(char)*disk_block->inode.name_length);
+
 	writeblock(&name->data, disk_block->inode.data[0]);
 
+  //Set times for access and modification
 	clock_gettime(CLOCK_REALTIME, &disk_block->inode.a_time);
 	clock_gettime(CLOCK_REALTIME, &disk_block->inode.m_time);
 
+  //Write the disk block
 	writeblock(disk_block, 5);
 	return 0;
 }
@@ -254,10 +256,15 @@ int main( int argc, char *argv[] )
 
   union lfs_block* k = readblock(5);
 
-	char data[512];
+  printf("name length: %d\n", k->inode.name_length);
+  printf("data block: %d, loading\n", k->inode.data[0]);
 
-  memcpy(&data, &k->inode.data[0], 8);
-	printf("%s\n", data);
+  union lfs_block* l = readblock(k->inode.data[0]);
+
+  char data[k->inode.name_length];
+  memcpy(&data, &l->data, k->inode.name_length+1); //plus one to include null termination
+  printf("%s\n", data);
+
 
 	//fuse_main( argc, argv, &lfs_oper );
 
