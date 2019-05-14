@@ -268,9 +268,13 @@ int lfs_getattr( const char *path, struct stat *stbuf )
   {
     stbuf->st_mode = S_IFDIR | 0777;
   }
-  else
+  else if(block->inode.type == 0)
   {
     stbuf->st_mode = S_IFREG | 0777;
+  }
+  else
+  {
+    return -EINVAL;
   }
   stbuf->st_size = block->inode.size;
   stbuf->st_atim = block->inode.a_time;
@@ -291,26 +295,21 @@ int lfs_readdir( const char *path, void *buf, fuse_fill_dir_t filler, off_t offs
 
   for (size_t i = 1; i < 236; i++) {
     // printf("%s\n", "reading tempblock");
-    union lfs_block* temp_block = readblock(dir_block->inode.data[i]);
-    //read this blocks name block
-    // printf("%s\n", "reading nameblock");
-    union lfs_block* name_block = readblock(temp_block->inode.data[0]);
-
-    //copy the name into array to compare
-    // printf("%s\n", "creating block");
-    char data[temp_block->inode.name_length];
-    // printf("%s\n", "cpy data");
-    memcpy(&data, &name_block->data, temp_block->inode.name_length+1);
-    printf("%s\n", data);
-    if(strcmp(data, "") == 0)
+    if(dir_block->inode.data[i] > 0 && dir_block->inode.data[i] < 20480) //Check if numbers are valid
     {
+      union lfs_block* temp_block = readblock(dir_block->inode.data[i]);
+      //read this blocks name block
+      // printf("%s\n", "reading nameblock");
+      union lfs_block* name_block = readblock(temp_block->inode.data[0]);
 
-    }
-    else{
-      // printf("%s\n", "filling");
+      //copy the name into array to compare
+      // printf("%s\n", "creating block");
+      char data[temp_block->inode.name_length];
+      // printf("%s\n", "cpy data");
+      memcpy(&data, &name_block->data, temp_block->inode.name_length+1);
+      printf("%s\n", data);
       filler(buf, data, NULL, 0);
     }
-
   }
 
 
