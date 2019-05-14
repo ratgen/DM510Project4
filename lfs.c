@@ -15,6 +15,7 @@ int lfs_write( const char *, const char *, size_t, off_t, struct fuse_file_info 
 int lfs_release(const char *path, struct fuse_file_info *fi);
 int lfs_mkdir(const char* path, mode_t mode);
 int lfs_rmdir(const char* path);
+int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi);
 
 
 static struct fuse_operations lfs_oper = {
@@ -23,6 +24,7 @@ static struct fuse_operations lfs_oper = {
 	.mknod = NULL,
 	.mkdir = lfs_mkdir,
 	.unlink = NULL,
+  .create = lfs_create,
 	.rmdir = lfs_rmdir,
 	.truncate = NULL,
 	.open	= lfs_open,
@@ -236,6 +238,18 @@ int get_name(unsigned int block, char* name)
   return -ENOENT;
 }
 
+//get a free slot for a block pointer
+int get_free_slot_dir(union lfs_block* block)
+{
+  int free_slot = 1;
+  while(block->inode.data[free_slot] != 0)
+  {
+    printf("%d\n", block->inode.data[free_slot]);
+    free_slot += 1;
+  }
+  return free_slot;
+}
+
 int get_block_from_path(const char* path)
 {
   const char s[2] = "/";
@@ -322,12 +336,8 @@ int lfs_mkdir(const char* path, mode_t mode)
   printf("parent id %d\n", parent_block_id);
   union lfs_block* parent_block = readblock(parent_block_id);
 
-  int free_slot = 1;
-  while(parent_block->inode.data[free_slot] != 0)
-  {
-    printf("%d\n", parent_block->inode.data[free_slot]);
-    free_slot += 1;
-  }
+  int free_slot = get_free_slot_dir(parent_block);
+
   printf("free slot in parent %d\n", free_slot);
   //insert reference to the new dir into parent dir
   parent_block->inode.data[free_slot] = block;
@@ -431,16 +441,93 @@ int lfs_readdir( const char *path, void *buf, fuse_fill_dir_t filler,
 	return 0;
 }
 
+int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi)
+{
+  char temp[512];
+  strcpy(temp, path);
+  unsigned short parent_dir_id = get_block_from_path(dirname(temp));
+
+  int new_file_id = get_block();
+
+  //read the parent dir block
+  union lfs_block* parent_dir = readblock(parent_dir_id);
+  int free_slot = get_free_slot_dir(parent_dir);
+  //insert new file id, and write to disk
+  parent_dir->inode.data[free_slot] = new_file_id;
+  writeblock(parent_dir, parent_dir_id);
+  free(parent_dir);
+
+  //allocate inode, for new file
+  union lfs_block* new_file = malloc(sizeof(lfs_block));
+  int new_name_id = get_block();
+  //allocate data block, for name
+  union lfs_block* new_name = malloc(sizeof(lfs_block));
+  //insert length of name into inode
+  new_file->inode.name_length = strlen(basename((char *) path)) + 1;
+  //copy the name into the data block and write
+  memcpy(new_name->data, basename((char *) path), new_file->inode.name_length);
+  writeblock(new_name, new_name_id);
+  free(new_name);
+
+  //set data, type, parent and clock
+  new_file->inode.data[0] = new_name_id;
+  new_file->inode.type = 0;
+  new_file->inode.parent = parent_dir_id;
+  clock_gettime(CLOCK_REALTIME, &new_file->inode.a_time);
+	clock_gettime(CLOCK_REALTIME, &new_file->inode.m_time);
+
+  writeblock(new_file, new_file_id);
+  fi->fh = new_file_id;
+  free(new_file);
+  return 0;
+}
+
 int lfs_open( const char *path, struct fuse_file_info *fi )
 {
    //check if file exists
   int res = get_block_from_path(path);
-  if(res < 0)
+  if(res > 0)
   {
-    return res;
+    fi->fh = res;
+  	return 0;
   }
-  fi->fh = res;
-	return 0;
+  //file doesn't exist, create it
+  char temp[512];
+  strcpy(temp, path);
+  unsigned short parent_dir_id = get_block_from_path(dirname(temp));
+
+  int new_file_id = get_block();
+
+  //read the parent dir block
+  union lfs_block* parent_dir = readblock(parent_dir_id);
+  int free_slot = get_free_slot_dir(parent_dir);
+  //insert new file id, and write to disk
+  parent_dir->inode.data[free_slot] = new_file_id;
+  writeblock(parent_dir, parent_dir_id);
+  free(parent_dir);
+
+  //allocate inode, for new file
+  union lfs_block* new_file = malloc(sizeof(lfs_block));
+  int new_name_id = get_block();
+  //allocate data block, for name
+  union lfs_block* new_name = malloc(sizeof(lfs_block));
+  //insert length of name into inode
+  new_file->inode.name_length = strlen(basename((char *) path)) + 1;
+  //copy the name into the data block and write
+  memcpy(new_name->data, basename((char *) path), new_file->inode.name_length);
+  writeblock(new_name, new_name_id);
+  free(new_name);
+
+  //set data, type, parent and clock
+  new_file->inode.data[0] = new_name_id;
+  new_file->inode.type = 0;
+  new_file->inode.parent = parent_dir_id;
+  clock_gettime(CLOCK_REALTIME, &new_file->inode.a_time);
+	clock_gettime(CLOCK_REALTIME, &new_file->inode.m_time);
+
+  writeblock(new_file, new_file_id);
+  free(new_file);
+  return 0;
 }
 
 int lfs_read( const char *path, char *buf, size_t size, off_t offset,
@@ -478,8 +565,6 @@ int main( int argc, char *argv[] )
   // char data[k->inode.name_length];
   // memcpy(&data, &l->data, k->inode.name_length+1); //plus one to include null termination
   // printf("%s\n", data);
-
-
 	fuse_main( argc, argv, &lfs_oper );
 
 	return 0;
