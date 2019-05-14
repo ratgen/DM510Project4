@@ -1,3 +1,4 @@
+#include <math.h>
 #include <fuse.h>
 #include <errno.h>
 #include <string.h>
@@ -491,43 +492,8 @@ int lfs_open( const char *path, struct fuse_file_info *fi )
     fi->fh = res;
   	return 0;
   }
-  //file doesn't exist, create it
-  char temp[512];
-  strcpy(temp, path);
-  unsigned short parent_dir_id = get_block_from_path(dirname(temp));
 
-  int new_file_id = get_block();
-
-  //read the parent dir block
-  union lfs_block* parent_dir = readblock(parent_dir_id);
-  int free_slot = get_free_slot_dir(parent_dir);
-  //insert new file id, and write to disk
-  parent_dir->inode.data[free_slot] = new_file_id;
-  writeblock(parent_dir, parent_dir_id);
-  free(parent_dir);
-
-  //allocate inode, for new file
-  union lfs_block* new_file = malloc(sizeof(lfs_block));
-  int new_name_id = get_block();
-  //allocate data block, for name
-  union lfs_block* new_name = malloc(sizeof(lfs_block));
-  //insert length of name into inode
-  new_file->inode.name_length = strlen(basename((char *) path)) + 1;
-  //copy the name into the data block and write
-  memcpy(new_name->data, basename((char *) path), new_file->inode.name_length);
-  writeblock(new_name, new_name_id);
-  free(new_name);
-
-  //set data, type, parent and clock
-  new_file->inode.data[0] = new_name_id;
-  new_file->inode.type = 0;
-  new_file->inode.parent = parent_dir_id;
-  clock_gettime(CLOCK_REALTIME, &new_file->inode.a_time);
-	clock_gettime(CLOCK_REALTIME, &new_file->inode.m_time);
-
-  writeblock(new_file, new_file_id);
-  free(new_file);
-  return 0;
+  return -ENOENT;
 }
 
 int lfs_read( const char *path, char *buf, size_t size, off_t offset,
@@ -540,7 +506,48 @@ int lfs_read( const char *path, char *buf, size_t size, off_t offset,
 int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
               struct fuse_file_info *fi)
 {
-  return 0;
+  int ogoffset = offset;
+  int block = get_block_from_path(path);
+  if(block < 0)
+  {
+    return -ENOENT;
+  }
+  union lfs_block* write_block = readblock(block);
+
+  if(write_block->inode.size < offset + size )
+  {
+    union lfs_block* new_page;
+    int new_pages = (int) ceil((double)((offset + size - write_block->inode.size)/512));
+    for(int i = 0; i < new_pages; i++)
+    {
+      write_block = readblock(block);
+      int page_id = get_block();
+      //update parent
+      write_block->inode.data[get_free_slot_dir(write_block)] = page_id;
+      writeblock(write_block, block);
+
+      new_page = malloc(sizeof(lfs_block));
+      writeblock(new_page, page_id);
+    }
+    write_block->inode.size = write_block->inode.size + offset + size;
+    free(new_page);
+  }
+
+  //we start writing from offset
+  int page = offset/512;
+  //read in page, copy from buf until
+
+  int num_pages = (int) ceil((double) size/512); //number of pages to write
+  for(int i = 0; i < num_pages; i++)
+  {
+    union lfs_block* data_page = readblock(page);
+    memcpy(&data_page->data[offset % 512], &buf, 512 - (offset % 512) );
+    writeblock(data_page->data, page);
+    offset += 512 - (offset % 512);
+    page += 1;
+  }
+
+  return offset - ogoffset;
 }
 
 
