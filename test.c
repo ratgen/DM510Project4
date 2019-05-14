@@ -50,19 +50,11 @@ int main(){
   // }
 
 
-  char str[17] = "/this/is/an/path";
-   const char s[2] = "/";
-   char *token;
+  char str[18] = "/kk";
+  printf("%s\n", basename(str));
+  printf("%s\n", dirname(str));
+  printf("%s\n", basename(str));
 
-   /* get the first token */
-   token = strtok(str, s);
-
-   /* walk through other tokens */
-   while( token != NULL ) {
-      printf( "%s\n", token );
-
-      token = strtok(NULL, s);
-   }
 
    return(0);
 
