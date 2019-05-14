@@ -23,23 +23,48 @@ int main(){
   // unsigned char data[512];
   //
   //
-  unsigned char ja;
-  ja |= 1UL << 7;
-  ja |= 1UL << 6;
-  ja |= 1 << 5;
-  ja |= 1 << 4;
-  ja |= 1 << 3;
-  ja |= 1 << 2;
-  ja |= 1 << 1;
-  ja |= 1 << 0;
+  // unsigned char ja;
+  // ja |= 1UL << 7;
+  // ja |= 1UL << 6;
+  // ja |= 1 << 5;
+  // ja |= 1 << 4;
+  // ja |= 1 << 3;
+  // ja |= 1 << 2;
+  // ja |= 1 << 1;
+  // ja |= 1 << 0;
+  //
+  // ja ^= 1UL << 6;
+  // ja ^= (1UL << 1);
+  //
+  //
+  // if(ja < 255){
+  //   printf("%s\n", "ja");
+  // }
 
-  ja ^= 1UL << 6;
-  ja ^= (1UL << 1);
 
- 
-  if(ja < 255){
-    printf("%s\n", "ja");
-  }
+
+  // while(token != NULL)
+  // {
+  //   printf("%s\n", token);
+  //   token = strtok(str, s);
+  // }
+
+
+  char str[17] = "/this/is/an/path";
+   const char s[2] = "/";
+   char *token;
+
+   /* get the first token */
+   token = strtok(str, s);
+
+   /* walk through other tokens */
+   while( token != NULL ) {
+      printf( "%s\n", token );
+
+      token = strtok(NULL, s);
+   }
+
+   return(0);
 
 
 }

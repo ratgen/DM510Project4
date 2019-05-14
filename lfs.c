@@ -168,8 +168,10 @@ int free_block(unsigned int block)
   writeblock(bitmap_block, page);
   return 0;
 }
+//setup the root node
 int setup()
 {
+  init_bitmap();
 	union lfs_block* disk_block = malloc(sizeof(union lfs_block));
 
 	disk_block->inode.parent = 0;
@@ -195,36 +197,122 @@ int setup()
 	return 0;
 }
 
+unsigned int get_name(unsigned int block, char* name)
+{
+  printf("%s: %d\n", "reading search_block", block);
+  //read the block to search for names
+  union lfs_block* search_block = readblock(block);
+  //read the address of the first data block
+
+  int i = 1;
+  unsigned int cand_block = search_block->inode.data[i];
+  while(cand_block != 0)
+  {
+    printf("cand block: %d\n", cand_block);
+    unsigned int cand_block = search_block->inode.data[i];
+    //read the first data block
+    union lfs_block* temp_block = readblock(cand_block);
+    //read this blocks name block
+    union lfs_block* name_block = readblock(search_block->inode.data[0]);
+
+    //copy the name into array to compare
+    char data[search_block->inode.name_length];
+    memcpy(&data, &name_block->data, temp_block->inode.name_length+1);
+
+    //if the names and data match, then the candidate block is correct
+    if(strcmp(data, name) == 0)
+    {
+      return cand_block;
+    }
+    i += 1;
+    //Reached end of array of block arrays
+    if(i > 235)
+    {
+      return -ENOENT;
+    }
+  }
+}
+
+unsigned int get_block_from_path(const char* path)
+{
+  const char s[2] = "/";
+  char *token;
+  unsigned int block;
+  printf("%s\n", "calling get_block_from_path");
+  if(strcmp(path, "/") == 0) {printf("%s\n", "returning /");  return 5;};
+
+  printf("%s\n", "tokenizing");
+  token = strtok(path, s);
+  block = get_name(5, token); //gets the block of the token in the root block
+  while( token != NULL ) {
+
+    printf( " %s\n", token );
+    token = strtok(NULL, s);
+    if(token == NULL){ printf("%s\n", "breaking");  break;}
+    block = get_name(block, token);
+  }
+
+  return block;
+}
+
 int lfs_getattr( const char *path, struct stat *stbuf )
 {
-	int res = 0;
 	printf("getattr: (path=%s)\n", path);
-
 	memset(stbuf, 0, sizeof(struct stat));
-	if( strcmp( path, "/" ) == 0 ) {
-		stbuf->st_mode = S_IFDIR | 0755;
-		stbuf->st_nlink = 2;
-	} else if( strcmp( path, "/hello" ) == 0 ) {
-		stbuf->st_mode = S_IFREG | 0777;
-		stbuf->st_nlink = 1;
-		stbuf->st_size = 12;
-	} else
-		res = -ENOENT;
 
-	return res;
+   int num = get_block_from_path(path);
+  union lfs_block* block = readblock(num);
+  printf("%s %d\n", "gotblock", num);
+
+  if(block->inode.type == 1)
+  {
+    stbuf->st_mode = S_IFDIR | 0777;
+  }
+  else
+  {
+    stbuf->st_mode = S_IFREG | 0777;
+  }
+  stbuf->st_size = block->inode.size;
+  stbuf->st_atim = block->inode.a_time;
+  stbuf->st_mtim = block->inode.m_time;
+
+	return 0;
 }
 
 int lfs_readdir( const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi ) {
 	(void) offset;
 	(void) fi;
-	printf("readdir: (path=%s)\n", path);
+  filler(buf, ".", NULL, 0);
+  filler(buf, "..", NULL, 0);
 
-	if(strcmp(path, "/") != 0)
-		return -ENOENT;
+  printf("readdir: (path=%s)\n", path);
+  int block = get_block_from_path(path);
+  union lfs_block* dir_block = readblock(block);
 
-	filler(buf, ".", NULL, 0);
-	filler(buf, "..", NULL, 0);
-	filler(buf, "hello", NULL, 0);
+  for (size_t i = 1; i < 236; i++) {
+    // printf("%s\n", "reading tempblock");
+    union lfs_block* temp_block = readblock(dir_block->inode.data[i]);
+    //read this blocks name block
+    // printf("%s\n", "reading nameblock");
+    union lfs_block* name_block = readblock(temp_block->inode.data[0]);
+
+    //copy the name into array to compare
+    // printf("%s\n", "creating block");
+    char data[temp_block->inode.name_length];
+    // printf("%s\n", "cpy data");
+    memcpy(&data, &name_block->data, temp_block->inode.name_length+1);
+    printf("%s\n", data);
+    if(strcmp(data, "") == 0)
+    {
+
+    }
+    else{
+      // printf("%s\n", "filling");
+      filler(buf, data, NULL, 0);
+    }
+
+  }
+
 
 	return 0;
 }
@@ -250,23 +338,21 @@ int lfs_release(const char *path, struct fuse_file_info *fi) {
 int main( int argc, char *argv[] )
 {
   file_system = fopen("file", "r+");
-
-  init_bitmap();
   setup();
+  //
+  // union lfs_block* k = readblock(5);
+  //
+  // printf("name length: %d\n", k->inode.name_length);
+  // printf("data block: %d, loading\n", k->inode.data[0]);
+  //
+  // union lfs_block* l = readblock(k->inode.data[0]);
+  //
+  // char data[k->inode.name_length];
+  // memcpy(&data, &l->data, k->inode.name_length+1); //plus one to include null termination
+  // printf("%s\n", data);
 
-  union lfs_block* k = readblock(5);
 
-  printf("name length: %d\n", k->inode.name_length);
-  printf("data block: %d, loading\n", k->inode.data[0]);
-
-  union lfs_block* l = readblock(k->inode.data[0]);
-
-  char data[k->inode.name_length];
-  memcpy(&data, &l->data, k->inode.name_length+1); //plus one to include null termination
-  printf("%s\n", data);
-
-
-	//fuse_main( argc, argv, &lfs_oper );
+	fuse_main( argc, argv, &lfs_oper );
 
 	return 0;
 }
