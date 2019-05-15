@@ -1,6 +1,6 @@
 #include <math.h>
 #include <fuse.h>
-#include <errno.h>
+ #include <errno.h>
 #include <string.h>
 #include <libgen.h>
 #include <stdio.h>
@@ -32,7 +32,7 @@ static struct fuse_operations lfs_oper = {
 	.release = lfs_release,
 	.write = lfs_write,
 	.rename = NULL,
-	.utime = NULL
+	.utime = NULL,
 };
 
 typedef struct lfs_inode //sizeof() = 512
@@ -302,6 +302,7 @@ int get_block_from_path(const char* path)
 
    return -ENOENT;
 }
+ 
 
 int lfs_getattr( const char *path, struct stat *stbuf )
 {
@@ -331,7 +332,7 @@ int lfs_getattr( const char *path, struct stat *stbuf )
   stbuf->st_size = block->inode.size;
   stbuf->st_atim = block->inode.a_time;
   stbuf->st_mtim = block->inode.m_time;
-
+  stbuf->st_blksize = 512;
 
 	return 0;
 }
@@ -564,7 +565,7 @@ int lfs_read( const char *path, char *buf, size_t size, off_t offset,
     }
     else
     {
-      offset += (long) size - ((long) 512 - (offset % (long) 512));
+      offset += (long) size ;
     }
   }
   printf("READ: offset %ld bytes\n",  offset);
@@ -626,7 +627,7 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
     }
     else
     {
-      offset += (long) size - ((long) 512 - (offset % (long) 512));
+      offset += (long) size;
     }
   }
   return offset - org_offset;
@@ -644,6 +645,7 @@ int main( int argc, char *argv[] )
   setup();
 
 	fuse_main( argc, argv, &lfs_oper );
+
 
 	return 0;
 }
