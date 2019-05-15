@@ -227,6 +227,7 @@ int get_name(unsigned int block, char* name)
     cand_block = search_block->inode.data[i];
     if(cand_block > 0)
     {
+      printf("GET_NAME: cand_block %d, inode_num %d\n", search_block->inode.data[i], i);
       union lfs_block* temp_block = readblock(cand_block);
       //read this blocks name block
       union lfs_block* name_block = readblock(temp_block->inode.data[0]);
@@ -234,11 +235,14 @@ int get_name(unsigned int block, char* name)
       //copy the name into array to compare
       char data[temp_block->inode.name_length];
       memcpy(&data, &name_block->data, temp_block->inode.name_length);
+      printf("GET_NAME: cand_block name: %s, pathname: %s\n", data, name);
       //if the names and data match, then the candidate block is correct
       if(strcmp(data, name) == 0)
       {
+        printf("GET_NAME: names matched, returning %d\n", cand_block);
         return cand_block;
       }
+      printf("GET_NAME: names did not match\n");
     }
   }
   return -ENOENT;
@@ -259,32 +263,36 @@ unsigned short get_free_slot_dir(union lfs_block* block)
 
 int get_block_from_path(const char* path)
 {
-  const char s[2] = "/";
+  char path_save[512];
+  strcpy(path_save, path); //save the path, as strtok() modifies path
+
   char *path_element;
   int block;
   if(strcmp(path, "/") == 0) {printf("%s\n", "GET_BLOCK_PATH: Returning root node");  return 5;};
-
-  path_element = strtok((char *) path, s);
+  path_element = strtok((char *) path, "/");
   block = get_name(5, path_element); //gets the block of the path_element in the root block
   if(block < 6)
   {
     return -ENOENT;
   }
-  while( path_element != NULL ) {
-    path_element = strtok(NULL, s);
+   while( path_element != NULL ) {
+    path_element = strtok(NULL, "/");
     if(path_element == NULL)
     {
-      printf("%s\n", "GET_BLOCK_PATH: Got the last possible element");
       break;
     }
     block = get_name(block, path_element);
   }
-
+  if(block < 6)
+  {
+    return -ENOENT;
+  }
   union lfs_block* check_block = readblock(block);
   union lfs_block* nameblock = readblock(check_block->inode.data[0]);
   char data[512];
   memcpy(&data, &nameblock->data, check_block->inode.name_length);
-  if(strcmp(data, basename((char *) path)) == 0)
+  printf("GET_BLOCK_PATH: name: %s, basename: %s\n", data, basename((char *) path));
+  if(strcmp(data, basename((char *) path_save)) == 0)
   {
     //block is one we are looking for
     printf("GET_BLOCK_PATH: Found element: %s\n", basename((char *) path));
