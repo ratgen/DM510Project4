@@ -197,6 +197,7 @@ int setup()
 
 	disk_block->inode.parent = 0;
 	disk_block->inode.type = 1;
+  disk_block->inode.blocks = 2;
 
   //Get block for the name of root node
 	disk_block->inode.data[0] = get_block(); //get first block
@@ -327,9 +328,9 @@ unsigned short get_free_slot_dir(union lfs_block* block)
 }
 
 //updates of the number of blocks and bytes used by children
-int set_num_blocks(const char* path, int old_blocks, int old_size)
+int set_num_blocks(const char* path, int dif_blocks, int dif_size)
 {
-  printf("SET NUM BLOCKS: %s\n", path);
+  printf("SET NUM BLOCKS: %s, difference_blocks %d, difference_size %d\n", path, dif_blocks, dif_size);
 
   //base case
   char path_save[512];
@@ -342,8 +343,8 @@ int set_num_blocks(const char* path, int old_blocks, int old_size)
     printf("SET NUM BLOCKS: old: root_inode->inode.blocks %d\n", root_inode->inode.blocks);
     printf("SET NUM BLOCKS: old: root_inode->inode.size   %d\n",   root_inode->inode.size);
 
-    root_inode->inode.blocks += child_inode->inode.blocks - old_blocks;
-    root_inode->inode.size += child_inode->inode.size - old_size;
+    root_inode->inode.blocks += dif_blocks;
+    root_inode->inode.size += dif_size;
 
     printf("SET NUM BLOCKS: new: root_inode->inode.blocks %d\n", root_inode->inode.blocks);
     printf("SET NUM BLOCKS: new: root_inode->inode.size   %d\n",   root_inode->inode.size);
@@ -363,8 +364,8 @@ int set_num_blocks(const char* path, int old_blocks, int old_size)
     printf("SET NUM BLOCKS: old: parent_inode->inode.size %d\n",   parent_inode->inode.size);
 
 
-    parent_inode->inode.blocks += child_inode->inode.blocks - old_blocks;
-    parent_inode->inode.size += child_inode->inode.size - old_size;
+    parent_inode->inode.blocks += dif_blocks;
+    parent_inode->inode.size += dif_blocks;
 
     printf("SET NUM BLOCKS: new: parent_inode->inode.blocks %d\n", parent_inode->inode.blocks);
     printf("SET NUM BLOCKS: new: parent_inode->inode.size %d\n",   parent_inode->inode.size);
@@ -374,7 +375,7 @@ int set_num_blocks(const char* path, int old_blocks, int old_size)
     free(child_inode);
     //recursivly call on parent
     strcpy(path_save, path);
-    set_num_blocks(dirname(path_save), old_blocks, old_size);
+    set_num_blocks(dirname(path_save), dif_blocks, dif_size);
   }
   return 0;
 }
@@ -454,7 +455,7 @@ int lfs_mkdir(const char* path, mode_t mode)
   writeblock(new_dir, block);
   free(new_dir);
 
-  set_num_blocks(path, 0, 0); //
+  set_num_blocks(path, 2, 0); //
 
   return 0;
 }
@@ -592,21 +593,15 @@ int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi)
 
 int lfs_unlink(const char *path)
 {
-  printf("unlink %s\n", path);
   int rm_block_id = get_block_from_path(path);
   union lfs_block* rm_block = readblock(rm_block_id);
-  printf("unlink %s\n", path);
 
 
-printf("unlink %s\n", path);
   int old_size = rm_block->inode.size;
   int old_blocks =  rm_block->inode.blocks;
-  printf("unlink %s\n", path);
   rm_block->inode.size = 0;
   rm_block->inode.blocks = 0;
-  printf("unlink %s\n", path);
-  set_num_blocks(path, old_size, old_blocks);
-  printf("unlink %s\n", path);
+  set_num_blocks(path, old_blocks, old_size);
 
 
   union lfs_block* rm_block_parent = readblock(rm_block->inode.parent);
@@ -726,6 +721,7 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
       writeblock(new_page, page_id);
     }
     write_block->inode.blocks += new_pages;
+    writeblock(write_block, block);
     free(new_page);
   }
 
@@ -734,7 +730,7 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
   //read in page, copy from buf until
 
   int num_pages = (int) ceil((double) size/ (double) LFS_BLOCK_SIZE); //number of pages to write
-
+  write_block = readblock(block);
  for(int i = page + 1; i < num_pages + page + 1; i++) //add one to offset the name data block
   {
     union lfs_block* data_page = readblock(write_block->inode.data[i]);
