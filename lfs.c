@@ -90,7 +90,7 @@ void* readblock(int block)
 	{
 		return (void*) -EINVAL;
 	}
-  void* buffer = malloc(sizeof(char) * 512);
+  void* buffer = calloc(1, sizeof(char) * 512);
   if(!buffer)
   {
     return (void*) -ENOMEM;
@@ -111,7 +111,7 @@ void* readblock(int block)
 
 int init_bitmap()
 {
-  union lfs_block* bitmap_block = malloc(sizeof(union lfs_block));
+  union lfs_block* bitmap_block = calloc(1, sizeof(union lfs_block));
   //Write empty blocks to the 2nd through fifth blocks
   for (size_t i = 1; i < 5; i++) {
     writeblock(bitmap_block, i);  //The first 5 blocks are allocated to the bitmap
@@ -188,14 +188,14 @@ int free_block(unsigned int block)
 int setup()
 {
   init_bitmap();
-	union lfs_block* disk_block = malloc(sizeof(union lfs_block));
+	union lfs_block* disk_block = calloc(1, sizeof(union lfs_block));
 
 	disk_block->inode.parent = 0;
 	disk_block->inode.type = 1;
 
   //Get block for the name of root node
 	disk_block->inode.data[0] = get_block(); //get first block
-	union lfs_block *name = malloc(sizeof(lfs_block));
+	union lfs_block *name = calloc(1, sizeof(lfs_block));
 
   //Insert name length into inode
   disk_block->inode.name_length = 2;
@@ -247,11 +247,13 @@ int get_name(unsigned int block, char* name)
 //get a free slot for a block pointer in an inode
 unsigned short get_free_slot_dir(union lfs_block* block)
 {
-  int free_slot = 1;
+  int free_slot = 0;
   while(block->inode.data[free_slot] != 0 && block->inode.data[free_slot] < 20480)
   {
+    printf("FREE SLOT: content of freeslot %d: %d\n",free_slot, block->inode.data[free_slot]);
     free_slot += 1;
   }
+  printf("FREE SLOT: returning %d\n", free_slot);
   return free_slot;
 }
 
@@ -260,7 +262,7 @@ int get_block_from_path(const char* path)
   const char s[2] = "/";
   char *path_element;
   int block;
-  if(strcmp(path, "/") == 0) {printf("%s\n", "returning /");  return 5;};
+  if(strcmp(path, "/") == 0) {printf("%s\n", "GET_BLOCK_PATH: Returning root node");  return 5;};
 
   path_element = strtok((char *) path, s);
   block = get_name(5, path_element); //gets the block of the path_element in the root block
@@ -270,20 +272,27 @@ int get_block_from_path(const char* path)
   }
   while( path_element != NULL ) {
     path_element = strtok(NULL, s);
-    if(path_element == NULL){printf("%s\n", "no more");  break;}
-     block = get_name(block, path_element);
+    if(path_element == NULL)
+    {
+      printf("%s\n", "GET_BLOCK_PATH: Got the last possible element");
+      break;
+    }
+    block = get_name(block, path_element);
   }
 
   union lfs_block* check_block = readblock(block);
   union lfs_block* nameblock = readblock(check_block->inode.data[0]);
-   char data[512];
+  char data[512];
   memcpy(&data, &nameblock->data, check_block->inode.name_length);
   if(strcmp(data, basename((char *) path)) == 0)
   {
     //block is one we are looking for
+    printf("GET_BLOCK_PATH: Found element: %s\n", basename((char *) path));
     return block;
   }
   //could not find such file or dir
+    printf("GET_BLOCK_PATH: Could NOT FIND element: %s\n", basename((char *) path));
+
    return -ENOENT;
 }
 
@@ -337,7 +346,7 @@ int lfs_mkdir(const char* path, mode_t mode)
   writeblock(parent_block, parent_block_id);
 
   //setup the new inode for the dir
-  union lfs_block* new_dir = malloc(sizeof(lfs_block));
+  union lfs_block* new_dir = calloc(1, sizeof(lfs_block));
   new_dir->inode.parent = parent_block_id;
   new_dir->inode.type = 1;
 	clock_gettime(CLOCK_REALTIME, &new_dir->inode.a_time);
@@ -345,7 +354,7 @@ int lfs_mkdir(const char* path, mode_t mode)
 
   //create block for the name
   new_dir->inode.data[0] = get_block();
-  union lfs_block* name_block = malloc(sizeof(lfs_block));
+  union lfs_block* name_block = calloc(1,sizeof(lfs_block));
 
   new_dir->inode.name_length = strlen(basename((char *) path)) + 1;
   memcpy(name_block->data, basename((char *) path), new_dir->inode.name_length);
@@ -392,7 +401,7 @@ int lfs_readdir( const char *path, void *buf, fuse_fill_dir_t filler,
                 off_t offset, struct fuse_file_info *fi )
 {
 	(void) offset;
-	(void) fi;
+
   filler(buf, ".", NULL, 0);
   filler(buf, "..", NULL, 0);
 
@@ -408,13 +417,16 @@ int lfs_readdir( const char *path, void *buf, fuse_fill_dir_t filler,
     return -ENOTDIR;
   }
 
-  for (size_t i = 1; i < 234; i++) {
+  for (int i = 1; i < 234; i++) {
     if(dir_block->inode.data[i] > 0 && dir_block->inode.data[i] < 20480) //Check if numbers are valid
     {
+      printf("READDIR: found file or folder at %d, block %d\n", i, dir_block->inode.data[i]);
+
        union lfs_block* temp_block = readblock(dir_block->inode.data[i]);
       //read this blocks name block
       union lfs_block* name_block = readblock(temp_block->inode.data[0]);
 
+      printf("READDIR: name is in block: %d\n", temp_block->inode.data[0]);
       //copy the name into array to compare
       char data[temp_block->inode.name_length];
       memcpy(&data, &name_block->data, temp_block->inode.name_length);
@@ -444,9 +456,9 @@ int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi)
   free(parent_dir);
 
   //allocate inode, for new file
-  union lfs_block* new_file = malloc(sizeof(lfs_block));
+  union lfs_block* new_file = calloc(1, sizeof(lfs_block));
   //allocate data block, for name
-  union lfs_block* new_name = malloc(sizeof(lfs_block));
+  union lfs_block* new_name = calloc(1, sizeof(lfs_block));
   //insert length of name into inode
   new_file->inode.name_length = strlen(basename((char *) path)) + 1;
 
@@ -458,6 +470,8 @@ int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi)
 
   //set data, type, parent and clock
   new_file->inode.data[0] = new_name_id;
+  //new_file->inode.data[1] = 0;
+
   new_file->inode.type = 0;
   new_file->inode.parent = parent_dir_id;
   clock_gettime(CLOCK_REALTIME, &new_file->inode.a_time);
@@ -513,15 +527,19 @@ int lfs_read( const char *path, char *buf, size_t size, off_t offset,
 int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
               struct fuse_file_info *fi)
 {
+
   long org_offset = offset;
   int block = get_block_from_path(path);
+  printf("WRITE: block of inode: %d\n", block);
   if(block < 0)
   {
     return -ENOENT;
   }
 
   union lfs_block* write_block = readblock(block);
-
+  printf("%s\n", "WRITE: Free SLOTS:");
+  get_free_slot_dir(write_block);
+  printf("\n");
   if(write_block->inode.size < offset + size )
   {
     union lfs_block* new_page;
@@ -533,10 +551,12 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
       int page_id = get_block();
        //update parent
       unsigned short slot = get_free_slot_dir(write_block);
+      printf("WRITE: block of new data: %d\n", page_id);
+      printf("WRITE: new slot for data block in inode: %d\n", slot);
       write_block->inode.data[slot] = page_id;
       writeblock(write_block, block);
 
-      new_page = malloc(sizeof(lfs_block));
+      new_page = calloc(1, sizeof(lfs_block));
       writeblock(new_page, page_id);
     }
     write_block->inode.size = write_block->inode.size + offset + size;
