@@ -339,7 +339,6 @@ int set_num_blocks(const char* path, int dif_blocks, int dif_size)
   {
     strcpy(path_save, path);
     union lfs_block* root_inode = readblock(5);
-    union lfs_block* child_inode = readblock(get_block_from_path(path_save));
     printf("SET NUM BLOCKS: old: root_inode->inode.blocks %d\n", root_inode->inode.blocks);
     printf("SET NUM BLOCKS: old: root_inode->inode.size   %d\n",   root_inode->inode.size);
 
@@ -349,9 +348,9 @@ int set_num_blocks(const char* path, int dif_blocks, int dif_size)
     printf("SET NUM BLOCKS: new: root_inode->inode.blocks %d\n", root_inode->inode.blocks);
     printf("SET NUM BLOCKS: new: root_inode->inode.size   %d\n",   root_inode->inode.size);
 
-    writeblock(root_inode, 5);
-    free(root_inode);
-    free(child_inode);
+   writeblock(root_inode, 5);
+   free(root_inode);
+
   }
   else
   {
@@ -377,6 +376,7 @@ int set_num_blocks(const char* path, int dif_blocks, int dif_size)
     strcpy(path_save, path);
     set_num_blocks(dirname(path_save), dif_blocks, dif_size);
   }
+  printf("%s\n", "returning from SET NUM BLOCKS");
   return 0;
 }
 
@@ -493,9 +493,10 @@ int lfs_rmdir(const char* path)
   free(rm_block_parent);
 
   //free the name block, and the inode of the directory, and free the memory allocated
+
   free_block(rm_block->inode.data[0]);
   free_block(rm_block_id);
-  free(rm_block);
+  set_num_blocks(path, -2, 0);
 
   return 0;
 }
@@ -586,7 +587,7 @@ int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi)
   fi->fh = new_file_id;
   free(new_file);
 
-  set_num_blocks(path, 0, 0);
+  set_num_blocks(path, 2, 0);
 
   return 0;
 }
@@ -596,13 +597,7 @@ int lfs_unlink(const char *path)
   int rm_block_id = get_block_from_path(path);
   union lfs_block* rm_block = readblock(rm_block_id);
 
-
-  int old_size = rm_block->inode.size;
-  int old_blocks =  rm_block->inode.blocks;
-  rm_block->inode.size = 0;
-  rm_block->inode.blocks = 0;
-  set_num_blocks(path, old_blocks, old_size);
-
+  set_num_blocks(path, -rm_block->inode.blocks, -rm_block->inode.size);
 
   union lfs_block* rm_block_parent = readblock(rm_block->inode.parent);
 
@@ -621,6 +616,7 @@ int lfs_unlink(const char *path)
   writeblock(rm_block_parent, rm_block->inode.parent);
   free_block(rm_block_id);
   free(rm_block_parent);
+  free(rm_block);
 }
 
 
@@ -744,7 +740,7 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
       offset += (long) size;
     }
   }
-  set_num_blocks(path, old_blocks, old_size);
+  set_num_blocks(path, write_block->inode.blocks - old_blocks, write_block->inode.size - old_size);
   return offset - org_offset;
 }
 
