@@ -503,15 +503,30 @@ int lfs_read( const char *path, char *buf, size_t size, off_t offset,
 {
 
   int org_offset = offset;
+  printf("READ: offset is: %d\n", org_offset);
+  printf("READ: size  is: %ld\n", size);
+  //we start read from offset
+  int page_offset = offset/512;
+  printf("READ: start reading from page: %d\n", page_offset);
+  int retsize;
 
-  //we start writing from offset
-  int page = offset/512;
-  //read in page, copy from buf until
-  int num_pages = (int) ceil((double) size/512); //number of pages to read
+  //read in block of inode to read from
+  unsigned int read_block_id = get_block_from_path(path);
+  union lfs_block* read_block = readblock(read_block_id);
+  printf("READ: size of file %d\n", read_block->inode.size);
 
-  for(int i = page + 1; i < num_pages + page + 1; i++)
+  if(size > read_block->inode.size)
   {
-    union lfs_block* data_page = readblock(page);
+    retsize = size;
+    size = read_block->inode.size;
+  }
+
+  int num_pages = (int) ceil((double) size/ (double) 512); //number of pages to read
+  printf("READ: total number of pages to read: %d\n", num_pages);
+
+  for(int i = page_offset + 1; i < num_pages + page_offset + 1; i++)
+  {
+    union lfs_block* data_page = readblock(read_block->inode.data[i]);
     memcpy(&buf[offset - org_offset], &data_page->data[offset % 512], 512 - (offset % 512) );
     if(size - offset > 512){
       offset += (long) 512 - (offset % (long) 512);
@@ -521,7 +536,8 @@ int lfs_read( const char *path, char *buf, size_t size, off_t offset,
       offset += (long) size - ((long) 512 - (offset % (long) 512));
     }
   }
-  return offset - org_offset;
+  printf("READ: offset %ld bytes\n",  offset);
+  return retsize;
 }
 
 int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
@@ -548,6 +564,7 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
     for(int i = 0; i < new_pages; i++)
     {
       write_block = readblock(block);
+      write_block->inode.size = write_block->inode.size + offset + size;
       int page_id = get_block();
        //update parent
       unsigned short slot = get_free_slot_dir(write_block);
@@ -559,7 +576,6 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
       new_page = calloc(1, sizeof(lfs_block));
       writeblock(new_page, page_id);
     }
-    write_block->inode.size = write_block->inode.size + offset + size;
     free(new_page);
   }
 
