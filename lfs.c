@@ -326,7 +326,7 @@ unsigned short get_free_slot_dir(union lfs_block* block)
 }
 
 //updates of the number of blocks and bytes used by children
-int set_num_blocks(const char* path)
+int set_num_blocks(const char* path, int old_blocks, int old_size)
 {
   //base case
   char path_save[512];
@@ -336,9 +336,26 @@ int set_num_blocks(const char* path)
     union lfs_block* root_inode = readblock(5);
     union lfs_block* child_inode = readblock(get_block_from_path(path));
 
-    root_inode->inode.blocks += child_inode->inode.blocks;
-    root_inode->inode.size += child_inode->inode.size;
+    root_inode->inode.blocks += child_inode->inode.blocks - old_blocks;
+    root_inode->inode.size += child_inode->inode.size - old_size;
     writeblock(root_inode, 5);
+    free(root_inode);
+    free(child_inode);
+  }
+  else
+  {
+    strcpy(path_save, path);
+    int child_inode_id = get_block_from_path(path);
+    union lfs_block* child_inode = readblock(child_inode_id);
+    union lfs_block* parent_inode = readblock(child_inode->inode.parent);
+
+    parent_inode->inode.blocks += child_inode->inode.blocks;
+    parent_inode->inode.size += child_inode->inode.size;
+    writeblock(parent_inode, child_inode->inode.parent);
+    free(parent_inode);
+    free(child_inode);
+    //recursivly call on parent
+    set_num_blocks(dirname(path));
   }
 
 
@@ -401,6 +418,7 @@ int lfs_mkdir(const char* path, mode_t mode)
   new_dir->inode.parent = parent_block_id;
   new_dir->inode.type = 1;
   new_dir->inode.blocks = 2;
+  new_dir->size = 0;
 	clock_gettime(CLOCK_REALTIME, &new_dir->inode.a_time);
 	clock_gettime(CLOCK_REALTIME, &new_dir->inode.m_time);
 
@@ -412,13 +430,14 @@ int lfs_mkdir(const char* path, mode_t mode)
   new_dir->inode.name_length = strlen(basename((char *) path)) + 1;
   memcpy(name_block->data, basename((char *) path), new_dir->inode.name_length);
 
-  set_num_blocks(path); //
 
   //write the name, new dir and free the calloc'ed memory
   writeblock(name_block, new_dir->inode.data[0]);
   free(name_block);
   writeblock(new_dir, block);
   free(new_dir);
+
+  set_num_blocks(path, 0, 0); //
 
   return 0;
 }
@@ -538,6 +557,8 @@ int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi)
   //new_file->inode.data[1] = 0;
 
   new_file->inode.type = 0;
+  new_file->blocks = 2;
+  new_file->size = 0;
   new_file->inode.parent = parent_dir_id;
   clock_gettime(CLOCK_REALTIME, &new_file->inode.a_time);
 	clock_gettime(CLOCK_REALTIME, &new_file->inode.m_time);
@@ -546,6 +567,7 @@ int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi)
   fi->fh = new_file_id;
   free(new_file);
 
+  set_num_blocks(path, 0, 0);
 
   return 0;
 }
@@ -645,9 +667,14 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
   printf("%s\n", "WRITE: Free SLOTS:");
   get_free_slot_dir(write_block);
   printf("\n");
+
+  int old_size = write_block->inode.size;
+  int old_blocks = write_block->inode.blocks;
+
   if(write_block->inode.size < offset + size )
   {
     union lfs_block* new_page;
+    //number of new data blocks to be allocated
      int new_pages = (int)ceil((double)(offset + size - write_block->inode.size)/(double)LFS_BLOCK_SIZE);
 
     for(int i = 0; i < new_pages; i++)
@@ -665,6 +692,7 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
       new_page = calloc(1, LFS_BLOCK_SIZE);
       writeblock(new_page, page_id);
     }
+    write_block->inode.blocks += new_pages;
     free(new_page);
   }
 
@@ -687,6 +715,7 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
       offset += (long) size;
     }
   }
+  set_num_blocks(path, old_blocks, old_size);
   return offset - org_offset;
 }
 
