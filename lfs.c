@@ -40,6 +40,7 @@ static struct fuse_operations lfs_oper = {
 
 typedef struct lfs_inode //sizeof() = LFS_BLOCK_SIZE
 {
+  //test with ls -ul (lists access time) | test with ls -l (lists modification time)
   struct timespec a_time; //set with clock_gettime(CLOCK_REALTIME, &timespace a_time)
   struct timespec m_time; //16 bytes
 
