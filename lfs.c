@@ -268,7 +268,7 @@ int get_block_from_path(const char* path)
     printf("%s\n", "GET_BLOCK_PATH: Returning root node");
     return 5;
   }
-  //get the path of the first folder or file
+   //get the path of the first folder or file
   path_element = strtok((char *) path, "/");
   //gets the block of the path_element in the root block
   block = get_name(5, path_element);
@@ -293,6 +293,7 @@ int get_block_from_path(const char* path)
       return -ENOENT;
     }
   }
+  strcpy(path, path_save);
   //read in block, and its name
   union lfs_block* check_block = readblock(block);
   union lfs_block* nameblock = readblock(check_block->inode.data[0]);
@@ -300,7 +301,7 @@ int get_block_from_path(const char* path)
   char data[check_block->inode.name_length];
   memcpy(&data, &nameblock->data, check_block->inode.name_length);
   printf("GET_BLOCK_PATH: name: %s, basename: %s\n", data, basename((char *) path));
-  if(strcmp(data, basename((char *) path_save)) == 0)
+  if(strcmp(data, basename((char *) path)) == 0)
   {
     //block is one we are looking for
     printf("GET_BLOCK_PATH: Found element: %s\n", basename((char *) path));
@@ -328,13 +329,16 @@ unsigned short get_free_slot_dir(union lfs_block* block)
 //updates of the number of blocks and bytes used by children
 int set_num_blocks(const char* path, int old_blocks, int old_size)
 {
+  printf("SET NUM BLOCKS: %s\n", path);
+
   //base case
   char path_save[512];
   strcpy(path_save, path);
   if(strcmp(dirname(path_save), "/") == 0)
   {
+    strcpy(path_save, path);
     union lfs_block* root_inode = readblock(5);
-    union lfs_block* child_inode = readblock(get_block_from_path(path));
+    union lfs_block* child_inode = readblock(get_block_from_path(path_save));
 
     root_inode->inode.blocks += child_inode->inode.blocks - old_blocks;
     root_inode->inode.size += child_inode->inode.size - old_size;
@@ -345,21 +349,20 @@ int set_num_blocks(const char* path, int old_blocks, int old_size)
   else
   {
     strcpy(path_save, path);
-    int child_inode_id = get_block_from_path(path);
+    int child_inode_id = get_block_from_path(path_save);
     union lfs_block* child_inode = readblock(child_inode_id);
     union lfs_block* parent_inode = readblock(child_inode->inode.parent);
 
-    parent_inode->inode.blocks += child_inode->inode.blocks;
-    parent_inode->inode.size += child_inode->inode.size;
+    parent_inode->inode.blocks += child_inode->inode.blocks - old_blocks;
+    parent_inode->inode.size += child_inode->inode.size - old_size;
     writeblock(parent_inode, child_inode->inode.parent);
     free(parent_inode);
     free(child_inode);
     //recursivly call on parent
-    set_num_blocks(dirname(path));
+    strcpy(path_save, path);
+    set_num_blocks(dirname(path_save), old_blocks, old_size);
   }
-
-
-
+  return 0;
 }
 
 //gets attribute of file or directory
@@ -418,7 +421,7 @@ int lfs_mkdir(const char* path, mode_t mode)
   new_dir->inode.parent = parent_block_id;
   new_dir->inode.type = 1;
   new_dir->inode.blocks = 2;
-  new_dir->size = 0;
+  new_dir->inode.size = 0;
 	clock_gettime(CLOCK_REALTIME, &new_dir->inode.a_time);
 	clock_gettime(CLOCK_REALTIME, &new_dir->inode.m_time);
 
@@ -456,6 +459,7 @@ int lfs_rmdir(const char* path)
   }
   if(rm_block->inode.blocks > 2) //the two blocks are inode and name data
   {
+    printf("number of blocks in folder %d\n", rm_block->inode.blocks);
     return -ENOTEMPTY;
   }
 
@@ -557,8 +561,8 @@ int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi)
   //new_file->inode.data[1] = 0;
 
   new_file->inode.type = 0;
-  new_file->blocks = 2;
-  new_file->size = 0;
+  new_file->inode.blocks = 2;
+  new_file->inode.size = 0;
   new_file->inode.parent = parent_dir_id;
   clock_gettime(CLOCK_REALTIME, &new_file->inode.a_time);
 	clock_gettime(CLOCK_REALTIME, &new_file->inode.m_time);
@@ -574,14 +578,21 @@ int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi)
 
 int lfs_unlink(const char *path)
 {
+  printf("unlink %s\n", path);
   int rm_block_id = get_block_from_path(path);
   union lfs_block* rm_block = readblock(rm_block_id);
+  printf("unlink %s\n", path);
 
+
+printf("unlink %s\n", path);
   int old_size = rm_block->inode.size;
   int old_blocks =  rm_block->inode.blocks;
+  printf("unlink %s\n", path);
   rm_block->inode.size = 0;
   rm_block->inode.blocks = 0;
+  printf("unlink %s\n", path);
   set_num_blocks(path, old_size, old_blocks);
+  printf("unlink %s\n", path);
 
 
   union lfs_block* rm_block_parent = readblock(rm_block->inode.parent);
