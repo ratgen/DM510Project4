@@ -588,6 +588,7 @@ int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi)
   fi->fh = new_file_id;
   free(new_file);
 
+
   set_num_blocks(path, 2, 0);
 
   return 0;
@@ -672,6 +673,9 @@ int lfs_read( const char *path, char *buf, size_t size, off_t offset,
       offset += (long) size ;
     }
   }
+  clock_gettime(CLOCK_REALTIME, &read_inode->inode.a_time);
+  writeblock(read_inode, read_inode_id);
+
   printf("READ: offset %ld bytes\n",  offset);
   return retsize;
 }
@@ -738,8 +742,13 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
      }
 
   }
+  clock_gettime(CLOCK_REALTIME, &write_inode->inode.a_time);
+  clock_gettime(CLOCK_REALTIME, &write_inode->inode.m_time);
+  writeblock(write_inode, write_inode_id);
+
   set_num_blocks(path, write_inode->inode.blocks - old_blocks, offset - old_size);
   printf("WRITE returning: %ld\n", offset - old_size);
+  free(write_inode);
   return (offset - old_size);
 }
 
@@ -755,7 +764,6 @@ int main( int argc, char *argv[] )
   setup();
 
 	fuse_main( argc, argv, &lfs_oper );
-
 
 	return 0;
 }
