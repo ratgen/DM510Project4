@@ -17,14 +17,13 @@ int lfs_release(const char *path, struct fuse_file_info *fi);
 int lfs_mkdir(const char* path, mode_t mode);
 int lfs_rmdir(const char* path);
 int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi);
-
+int lfs_unlink(const char *path);
 
 static struct fuse_operations lfs_oper = {
 	.getattr	= lfs_getattr,
 	.readdir	= lfs_readdir,
-	.mknod = NULL,
-	.mkdir = lfs_mkdir,
-	.unlink = NULL,
+ 	.mkdir = lfs_mkdir,
+	.unlink = lfs_unlink,
   .create = lfs_create,
 	.rmdir = lfs_rmdir,
 	.truncate = NULL,
@@ -55,7 +54,7 @@ typedef union lfs_block  //with union block can either be data or inode_t
   inode_t inode;
   unsigned char data[512];
 
-}lfs_block ;
+} lfs_block;
 
 void print_unsigned_binary(unsigned int n)
 {
@@ -492,6 +491,30 @@ int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi)
 
   return 0;
 }
+
+int lfs_unlink(const char *path)
+{
+  int rm_block_id = get_block_from_path(path);
+  union lfs_block* rm_block = readblock(rm_block_id);
+  union lfs_block* rm_block_parent = readblock(rm_block->inode.parent);
+
+  for(int i = 0; i < 234; i++)
+  {
+    if(rm_block->inode.data[i] > 0 && rm_block->inode.data[i] < 20480)
+    {
+      printf("UNLINK: freeing block: \n", rm_block->inode.data[i]);
+      free_block(rm_block->inode.data[i]);
+    }
+    if(rm_block_parent->inode.data[i] == rm_block_id)
+    {
+      rm_block_parent->inode.data[i] = 0;
+    }
+  }
+  writeblock(rm_block_parent, rm_block->inode.parent);
+  free_block(rm_block_id);
+  free(rm_block_parent);
+}
+
 
 int lfs_open( const char *path, struct fuse_file_info *fi )
 {
