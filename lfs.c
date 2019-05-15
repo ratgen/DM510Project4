@@ -576,6 +576,14 @@ int lfs_unlink(const char *path)
 {
   int rm_block_id = get_block_from_path(path);
   union lfs_block* rm_block = readblock(rm_block_id);
+
+  int old_size = rm_block->inode.size;
+  int old_blocks =  rm_block->inode.blocks;
+  rm_block->inode.size = 0;
+  rm_block->inode.blocks = 0;
+  set_num_blocks(path, old_size, old_blocks);
+
+
   union lfs_block* rm_block_parent = readblock(rm_block->inode.parent);
 
   for(int i = 0; i < INODE_BLOCK_IDS; i++)
