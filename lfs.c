@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define INODE_BLOCK_IDS 232
+#define INODE_BLOCK_IDS 231
 #define LFS_BLOCK_SIZE 512
 
 FILE * file_system;
@@ -48,7 +48,7 @@ typedef struct lfs_inode //sizeof() = LFS_BLOCK_SIZE
   //chilren of folders are contained the in the data block
   unsigned char type;     //1 byte
   unsigned int size;  //4 bytes
-  unsigned short blocks; //blocks allocated to this inode
+  unsigned int blocks; //blocks allocated to this inode
   int name_length;
   unsigned short data[INODE_BLOCK_IDS]; //array of block ids can hold 232*LFS_BLOCK_SIZE = 0.24 MB
 } inode_t;
@@ -339,9 +339,15 @@ int set_num_blocks(const char* path, int old_blocks, int old_size)
     strcpy(path_save, path);
     union lfs_block* root_inode = readblock(5);
     union lfs_block* child_inode = readblock(get_block_from_path(path_save));
+    printf("SET NUM BLOCKS: old: root_inode->inode.blocks %d\n", root_inode->inode.blocks);
+    printf("SET NUM BLOCKS: old: root_inode->inode.size   %d\n",   root_inode->inode.size);
 
     root_inode->inode.blocks += child_inode->inode.blocks - old_blocks;
     root_inode->inode.size += child_inode->inode.size - old_size;
+
+    printf("SET NUM BLOCKS: new: root_inode->inode.blocks %d\n", root_inode->inode.blocks);
+    printf("SET NUM BLOCKS: new: root_inode->inode.size   %d\n",   root_inode->inode.size);
+
     writeblock(root_inode, 5);
     free(root_inode);
     free(child_inode);
@@ -353,8 +359,16 @@ int set_num_blocks(const char* path, int old_blocks, int old_size)
     union lfs_block* child_inode = readblock(child_inode_id);
     union lfs_block* parent_inode = readblock(child_inode->inode.parent);
 
+    printf("SET NUM BLOCKS: old: parent_inode->inode.blocks %d\n", parent_inode->inode.blocks);
+    printf("SET NUM BLOCKS: old: parent_inode->inode.size %d\n",   parent_inode->inode.size);
+
+
     parent_inode->inode.blocks += child_inode->inode.blocks - old_blocks;
     parent_inode->inode.size += child_inode->inode.size - old_size;
+
+    printf("SET NUM BLOCKS: new: parent_inode->inode.blocks %d\n", parent_inode->inode.blocks);
+    printf("SET NUM BLOCKS: new: parent_inode->inode.size %d\n",   parent_inode->inode.size);
+
     writeblock(parent_inode, child_inode->inode.parent);
     free(parent_inode);
     free(child_inode);
