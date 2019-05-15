@@ -16,8 +16,9 @@ typedef struct lfs_inode //sizeof() = 512
   //chilren of folders are contained the in the data block
   unsigned char type;     //1 byte
   unsigned int size;  //4 bytes
-  unsigned int name_length; //4 bytes
-  unsigned short data[234]; //array of block ids can hold 234*512 = 0.24 MB
+  unsigned short blocks;
+  int name_length;
+  unsigned short data[232]; //array of block ids can hold 234*512 = 0.24 MB
 } inode_t;
 
 void bin(unsigned n)
