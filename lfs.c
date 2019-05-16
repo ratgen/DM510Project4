@@ -834,7 +834,7 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
   if((write_inode->inode.blocks - 2)*512 < offset + size )
   {
     //number of new data blocks to be allocated
-     int new_blocks = (int)ceil((double)(offset + size - write_inode->inode.size)/(double)LFS_BLOCK_SIZE);
+     int new_blocks = (int)ceil((double)(offset + size - (write_inode->inode.blocks - 2)*512)/(double)LFS_BLOCK_SIZE);
 
     for(int i = 0; i < new_blocks; i++)
     {
@@ -916,7 +916,7 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
   clock_gettime(CLOCK_REALTIME, &write_inode->inode.a_time);
   clock_gettime(CLOCK_REALTIME, &write_inode->inode.m_time);
   writeblock(write_inode, write_inode_id);
-  //update parents, with the change in blocks used, and size
+  //update parents, with the change in blocks used, and size 
   set_num_blocks(write_inode_id, write_inode->inode.blocks - old_blocks, offset - old_size);
   printf("WRITE returning: %ld\n", offset - old_size);
   free(write_inode);
