@@ -184,12 +184,12 @@ int get_block()
 
 int free_block(unsigned int block)
 {
-  //Floor division to find the correct page
-  int page = block/4096;
+  //Floor division to find the correct block
+  int data_block = block/4096;
   //Find the correct indice in the array
   int bank = (block % 4096)/8;
   //Read the bank, to be manipulated
-  union lfs_block* bitmap_block = readblock(page);
+  union lfs_block* bitmap_block = readblock(data_block);
   if(bitmap_block < 0)
   {
     return bitmap_block;
@@ -200,7 +200,7 @@ int free_block(unsigned int block)
   temp_byte ^= (1UL << (block % 8));
   //Copy the bank back, and write it to the disk
   memcpy(&bitmap_block->data[bank], &temp_byte, sizeof(char));
-  writeblock(bitmap_block, page);
+  writeblock(bitmap_block, data_block);
   free(bitmap_block);
   return 0;
 }
@@ -815,23 +815,23 @@ int lfs_read( const char *path, char *buf, size_t size, off_t offset,
     size = read_inode->inode.size;
   }
 
-  //find the page, to start reading from
+  //find the block, to start reading from
   int block_offset = offset/LFS_BLOCK_SIZE;
-  printf("READ: start reading from page: %d\n", block_offset);
-  //total number of pages to read
+  printf("READ: start reading from block: %d\n", block_offset);
+  //total number of blocks to read
   int num_blocks = (int) ceil((double) size/ (double) LFS_BLOCK_SIZE);
-  printf("READ: total number of pages to read: %d\n", num_blocks);
+  printf("READ: total number of blocks to read: %d\n", num_blocks);
 
   //read in one block at a time from the block_offset, offset by 1 extra to adjust for the name block in inode data
   for(int i = block_offset + 1; i < num_blocks + block_offset + 1; i++)
   {
-    union lfs_block* data_page = readblock(read_inode->inode.data[i]);
-    if(data_page < 0)
+    union lfs_block* data_block = readblock(read_inode->inode.data[i]);
+    if(data_block < 0)
     {
-      return data_page;
+      return data_block;
     }
-    //copy the whole data page into the buffer
-    memcpy(&buf[offset - org_offset], &data_page->data[offset % LFS_BLOCK_SIZE], LFS_BLOCK_SIZE);
+    //copy the whole data block into the buffer
+    memcpy(&buf[offset - org_offset], &data_block->data[offset % LFS_BLOCK_SIZE], LFS_BLOCK_SIZE);
     if(size - offset > LFS_BLOCK_SIZE){
       offset += (long) LFS_BLOCK_SIZE - (offset % (long) LFS_BLOCK_SIZE);
     }
@@ -839,7 +839,7 @@ int lfs_read( const char *path, char *buf, size_t size, off_t offset,
     {
       offset += (long) size;
     }
-    free(data_page);
+    free(data_block);
   }
   //set the access timestamp, and write to the read_inode
   clock_gettime(CLOCK_REALTIME, &read_inode->inode.a_time);
@@ -868,7 +868,7 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
   int old_size = write_inode->inode.size;
   int old_blocks = write_inode->inode.blocks;
 
-  //if the size of the of what to write is larger than total data blocks (excluding inode and name) already allocated, then allocate new pages
+  //if the size of the of what to write is larger than total data blocks (excluding inode and name) already allocated, then allocate new blocks
   if((write_inode->inode.blocks - 2)*512 < offset + size )
   {
     //number of new data blocks to be allocated
@@ -916,7 +916,7 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
   }
 
 
-  //find the page to start writing from
+  //find the block to start writing from
   int block_offset = offset/LFS_BLOCK_SIZE;
   //calculate the number of block to write to
   int num_blocks = (int) ceil((double) size/ (double) LFS_BLOCK_SIZE);
@@ -928,13 +928,13 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
   }
   for(int i = block_offset + 1; i < num_blocks + block_offset + 1; i++) //add one to offset the name data block
   {
-    union lfs_block* data_page = readblock(write_inode->inode.data[i]);
-    if(data_page < 0)
+    union lfs_block* data_block = readblock(write_inode->inode.data[i]);
+    if(data_block < 0)
     {
-      return data_page;
+      return data_block;
     }
-    memcpy(&data_page->data[offset % LFS_BLOCK_SIZE], &buf[offset - org_offset], LFS_BLOCK_SIZE - (offset % LFS_BLOCK_SIZE) );
-    writeblock(data_page->data, write_inode->inode.data[i]);
+    memcpy(&data_block->data[offset % LFS_BLOCK_SIZE], &buf[offset - org_offset], LFS_BLOCK_SIZE - (offset % LFS_BLOCK_SIZE) );
+    writeblock(data_block->data, write_inode->inode.data[i]);
     if(size < LFS_BLOCK_SIZE){
       //less than an entire block has been written,-
       offset += size;
