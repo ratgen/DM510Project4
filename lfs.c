@@ -876,7 +876,6 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
       return write_inode;
     }
     write_inode->inode.blocks += new_blocks;
-    write_inode->inode.size = offset + size;
     writeblock(write_inode, write_inode_id);
     free(write_inode);
   }
@@ -887,6 +886,13 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
   int num_blocks = (int) ceil((double) size/ (double) LFS_BLOCK_SIZE);
   //read in the inode, to write data to
   write_inode = readblock(write_inode_id);
+
+  if(offset + size > write_inode->inode.size)
+  {
+    //if the size to write is larger than the previous inode size, then update
+    write_inode->inode.size = offset + size;
+  }
+
   if(write_inode < 0)
   {
     return write_inode;
@@ -916,7 +922,7 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
   clock_gettime(CLOCK_REALTIME, &write_inode->inode.a_time);
   clock_gettime(CLOCK_REALTIME, &write_inode->inode.m_time);
   writeblock(write_inode, write_inode_id);
-  //update parents, with the change in blocks used, and size 
+  //update parents, with the change in blocks used, and size
   set_num_blocks(write_inode_id, write_inode->inode.blocks - old_blocks, offset - old_size);
   printf("WRITE returning: %ld\n", offset - old_size);
   free(write_inode);
