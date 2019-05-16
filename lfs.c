@@ -935,7 +935,6 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
     free(write_inode);
   }
 
-
   //find the block to start writing from
   int block_offset = offset/LFS_BLOCK_SIZE;
   //calculate the number of block to write to
@@ -971,7 +970,6 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
   clock_gettime(CLOCK_REALTIME, &write_inode->inode.a_time);
   clock_gettime(CLOCK_REALTIME, &write_inode->inode.m_time);
   writeblock(write_inode, write_inode_id);
-
   //update parents, with the change in blocks used, and size
   set_num_blocks(path, write_inode->inode.blocks - old_blocks, offset - old_size);
   printf("WRITE returning: %ld\n", offset - old_size);
@@ -985,7 +983,7 @@ int main( int argc, char *argv[] )
   //check if file exists
   if(file_system == NULL)
   {
-    printf("%s\n", "file must exist");
+    printf("%s\n", "Filesystem must exist, make an empty file with the name 'file' ");
     return -ENOENT;
   }
   //check if fs is being open for the first time
