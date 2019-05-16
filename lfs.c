@@ -376,7 +376,7 @@ int get_block_from_path(const char* path)
 }
 
 //get a free slot for a block pointer in an inode
-unsigned short get_free_slot_dir(union lfs_block* block)
+int get_free_slot_dir(union lfs_block* block)
 {
   int free_slot = 0;
   //block pointers must pass sanity check before being comfirmed as blocks
@@ -384,6 +384,11 @@ unsigned short get_free_slot_dir(union lfs_block* block)
   {
     printf("FREE SLOT: content of freeslot %d: %d\n",free_slot, block->inode.data[free_slot]);
     free_slot += 1;
+  }
+  if(free_slot > INODE_BLOCK_IDS)
+  {
+    printf("%s\n", "no more free slots");
+    return -EFBIG;
   }
   printf("FREE SLOT: returning %d\n", free_slot);
   return free_slot;
@@ -513,6 +518,10 @@ int lfs_mkdir(const char* path, mode_t mode)
   }
 
   int free_slot = get_free_slot_dir(parent_block);
+  if(free_slot < 0)
+  {
+    return free_slot;
+  }
   //insert reference to the new dir into parent dir
   parent_block->inode.data[free_slot] = block;
   //Write the new parent to disk
@@ -688,6 +697,10 @@ int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi)
     return parent_dir;
   }
   int free_slot = get_free_slot_dir(parent_dir);
+  if(free_slot < 0)
+  {
+    return free_slot;
+  }
   //insert new file id, and write to disk
   parent_dir->inode.data[free_slot] = new_file_id;
   writeblock(parent_dir, parent_dir_id);
@@ -889,8 +902,12 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
         return block_id;
       }
       //we get a free slot in the inode, and write the new block_id to this
-      unsigned short slot = get_free_slot_dir(write_inode);
-      write_inode->inode.data[slot] = block_id;
+      int free_slot = get_free_slot_dir(write_inode);
+      if(free_slot < 0)
+      {
+        return free_slot;
+      }
+      write_inode->inode.data[free_slot] = block_id;
       writeblock(write_inode, write_inode_id);
       free(write_inode);
       //an empty block is written to disk, to ensure it can be read safely
