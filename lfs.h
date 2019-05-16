@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define INODE_BLOCK_IDS 231
+#define INODE_BLOCK_IDS 234
 #define LFS_BLOCK_SIZE 512
 
 FILE * file_system;
@@ -40,12 +40,12 @@ typedef struct lfs_inode //sizeof() = LFS_BLOCK_SIZE
   struct timespec m_time; //16 bytes
 
   //Parents are referenced by their block num of their inode, as a 2 bytes integer (within the range of the num of blocks)
-  unsigned short parent;  // id of the parent //2 bytes
+  short parent;  // id of the parent //2 bytes
   //chilren of folders are contained the in the data block
   unsigned char type;     //1 byte
   int size;  //4 bytes
-  int blocks; //blocks allocated to this inode
-  int name_length;
+  short blocks; //blocks allocated to this inode
+  short name_length;
   unsigned short data[INODE_BLOCK_IDS]; //array of block ids can hold 232*LFS_BLOCK_SIZE = 0.24 MB
 } inode_t;
 
