@@ -207,7 +207,6 @@ int get_name(unsigned int search_block_id, char* name)
     cand_block = search_block->inode.data[i];
     if(cand_block > 0 && cand_block < 20480) //sanity check the candidate
     {
-      printf("GET_NAME: cand_block %d, inode_num %d\n", search_block->inode.data[i], i);
       //inode of the candidate is read
       union lfs_block* cand_inode = readblock(cand_block);
       if(cand_inode < 0)
@@ -220,15 +219,12 @@ int get_name(unsigned int search_block_id, char* name)
       {
         return name_block;
       }
-
       //copy the name into array to compare
       char data[cand_inode->inode.name_length];
       memcpy(&data, &name_block->data, cand_inode->inode.name_length);
-      printf("GET_NAME: cand_block name: %s, pathname: %s\n", data, name);
       //if the names and data match, then the candidate block is correct
       if(strcmp(data, name) == 0)
       {
-        printf("GET_NAME: names matched, returning %d\n", cand_block);
         free(cand_inode);
         free(name_block);
         free(search_block);
