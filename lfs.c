@@ -43,8 +43,8 @@ typedef struct lfs_inode //sizeof() = LFS_BLOCK_SIZE
   unsigned short parent;  // id of the parent //2 bytes
   //chilren of folders are contained the in the data block
   unsigned char type;     //1 byte
-  unsigned int size;  //4 bytes
-  unsigned int blocks; //blocks allocated to this inode
+  int size;  //4 bytes
+  int blocks; //blocks allocated to this inode
   int name_length;
   unsigned short data[INODE_BLOCK_IDS]; //array of block ids can hold 232*LFS_BLOCK_SIZE = 0.24 MB
 } inode_t;
@@ -208,44 +208,47 @@ int free_block(unsigned int block)
 //setup the root node
 int setup()
 {
-  init_bitmap();
-	union lfs_block* disk_block = calloc(1, sizeof(union lfs_block));
-  if(!disk_block)
-  {
-    return -ENOMEM;
-  }
-	disk_block->inode.parent = 0;
-	disk_block->inode.type = 1;
-  disk_block->inode.blocks = 2;
 
-  //Get block for the name of root node
-	int block_id = get_block(); //get first block
-  if(block_id < 0)
-  {
+    init_bitmap();
+    union lfs_block* disk_block = calloc(1, sizeof(union lfs_block));
+    if(!disk_block)
+    {
+      return -ENOMEM;
+    }
+  	disk_block->inode.parent = 0;
+  	disk_block->inode.type = 1;
+    disk_block->inode.blocks = 2;
+
+    //Get block for the name of root node
+  	int block_id = get_block(); //get first block
+    if(block_id < 0)
+    {
+      free(disk_block);
+      return block_id;
+    }
+    disk_block->inode.data[0] = block_id;
+  	union lfs_block *name = calloc(1, LFS_BLOCK_SIZE);
+    if(!name)
+    {
+      return -ENOMEM;
+    }
+    //Insert name length into inode
+    disk_block->inode.name_length = 2;
+    //Copy name of root to data block
+    memcpy(name,"/", sizeof(char)*disk_block->inode.name_length);
+
+  	writeblock(name, disk_block->inode.data[0]);
+    free(name);
+
+    //Set times for access and modification
+  	clock_gettime(CLOCK_REALTIME, &disk_block->inode.a_time);
+  	clock_gettime(CLOCK_REALTIME, &disk_block->inode.m_time);
+
+    //Write the disk block
+  	writeblock(disk_block, 5);
     free(disk_block);
-    return block_id;
-  }
-  disk_block->inode.data[0] = block_id;
-	union lfs_block *name = calloc(1, LFS_BLOCK_SIZE);
-  if(!name)
-  {
-    return -ENOMEM;
-  }
-  //Insert name length into inode
-  disk_block->inode.name_length = 2;
-  //Copy name of root to data block
-  memcpy(name,"/", sizeof(char)*disk_block->inode.name_length);
 
-	writeblock(name, disk_block->inode.data[0]);
-  free(name);
 
-  //Set times for access and modification
-	clock_gettime(CLOCK_REALTIME, &disk_block->inode.a_time);
-	clock_gettime(CLOCK_REALTIME, &disk_block->inode.m_time);
-
-  //Write the disk block
-	writeblock(disk_block, 5);
-  free(disk_block);
 	return 0;
 }
 
@@ -979,9 +982,21 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
 int main( int argc, char *argv[] )
 {
   file_system = fopen("file", "r+");
+  //check if file exists
+  if(file_system == NULL)
+  {
+    printf("%s\n", "file must exist");
+    return -ENOENT;
+  }
+  //check if fs is being open for the first time
+  union lfs_block* root = readblock(5);
+  if(root->inode.blocks > 1  && root->inode.blocks < 20480 )
+  {
+    fuse_main( argc, argv, &lfs_oper );
+    return 0;
+  }
+  //first time being opened
   setup();
-
-	fuse_main( argc, argv, &lfs_oper );
-
+  fuse_main( argc, argv, &lfs_oper );
 	return 0;
 }
