@@ -6,16 +6,16 @@ int writeblock(void* buf, int block)
 	{
 		return -EINVAL;
 	}
-	if (block < 0)
-	{
-		return -EINVAL;
-	}
-	int offset = LFS_BLOCK_SIZE*block;
-	fseek(file_system, offset, SEEK_SET);
-	if(fwrite(buf, LFS_BLOCK_SIZE, 1, file_system) != 1)
+  if (block < 0)
   {
-		return -EAGAIN;
-	}
+    return -EINVAL;
+  }
+  int offset = LFS_BLOCK_SIZE*block;
+  fseek(file_system, offset, SEEK_SET);
+  if(fwrite(buf, LFS_BLOCK_SIZE, 1, file_system) != 1)
+  {
+    return -EAGAIN;
+  }
 	return 1;
 }
 
