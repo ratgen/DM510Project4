@@ -729,17 +729,20 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
 
     for(int i = 0; i < new_blocks; i++)
     {
+      //read in the inode to allocate block to, and get a free block
       write_inode = readblock(write_inode_id);
-      int page_id = get_block();
-       //update parent
+      int block_id = get_block();
+      //we get a free slot in the inode, and write the new block_id to this
       unsigned short slot = get_free_slot_dir(write_inode);
-      write_inode->inode.data[slot] = page_id;
+      write_inode->inode.data[slot] = block_id;
       writeblock(write_inode, write_inode_id);
       free(write_inode);
-      union lfs_block* new_page = calloc(1, LFS_BLOCK_SIZE);
-      writeblock(new_page, page_id);
-      free(new_page);
+      //an empty block is written to disk, to ensure it can be read safely
+      union lfs_block* new_block = calloc(1, LFS_BLOCK_SIZE);
+      writeblock(new_block, block_id);
+      free(new_block);
     }
+    //read in the inode, to update the blocks used, and the size;
     write_inode = readblock(write_inode_id);
     write_inode->inode.blocks += new_blocks;
     write_inode->inode.size = offset + size;
@@ -747,19 +750,20 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
     free(write_inode);
   }
 
-  //we start writing from offset
-  int page = offset/LFS_BLOCK_SIZE;
-  //read in page, copy from buf until
 
-  int num_blocks = (int) ceil((double) size/ (double) LFS_BLOCK_SIZE); //number of pages to write
+  //find the page to start writing from
+  int block_offset = offset/LFS_BLOCK_SIZE;
+  //calculate the number of block to write to
+  int num_blocks = (int) ceil((double) size/ (double) LFS_BLOCK_SIZE);
+  //read in the inode, to write data to
   write_inode = readblock(write_inode_id);
-  for(int i = page + 1; i < num_blocks + page + 1; i++) //add one to offset the name data block
+  for(int i = block_offset + 1; i < num_blocks + block_offset + 1; i++) //add one to offset the name data block
   {
     union lfs_block* data_page = readblock(write_inode->inode.data[i]);
     memcpy(&data_page->data[offset % LFS_BLOCK_SIZE], &buf[offset - org_offset], LFS_BLOCK_SIZE - (offset % LFS_BLOCK_SIZE) );
     writeblock(data_page->data, write_inode->inode.data[i]);
     if(size < LFS_BLOCK_SIZE){
-      //less than an entire block has been written
+      //less than an entire block has been written,-
       offset += size;
       size -= size;
     }
@@ -769,16 +773,17 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
       offset += (long) LFS_BLOCK_SIZE;
       size -= (long) LFS_BLOCK_SIZE;
      }
-
   }
+  //update both access and modification times
   clock_gettime(CLOCK_REALTIME, &write_inode->inode.a_time);
   clock_gettime(CLOCK_REALTIME, &write_inode->inode.m_time);
   writeblock(write_inode, write_inode_id);
 
+  //update parents, with the change in blocks used, and size
   set_num_blocks(path, write_inode->inode.blocks - old_blocks, offset - old_size);
   printf("WRITE returning: %ld\n", offset - old_size);
   free(write_inode);
-  return (offset - old_size);
+  return (offset - old_size); //return number of bytes written
 }
 
 int lfs_release(const char *path, struct fuse_file_info *fi) {
