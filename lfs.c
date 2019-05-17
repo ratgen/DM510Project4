@@ -588,7 +588,16 @@ int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi)
 {
   char temp[LFS_BLOCK_SIZE];
   strcpy(temp, path);
-  unsigned short parent_dir_id = get_block_from_path(dirname(temp));
+  int exists = get_block_from_path(path);
+  if(exists > 0)
+  {
+    return -EEXIST;
+  }
+  int parent_dir_id = get_block_from_path(dirname(temp));
+  if(parent_dir_id < 0)
+  {
+    return parent_dir_id;
+  }
 
   int new_file_id = get_block();
   if(new_file_id < 0)
