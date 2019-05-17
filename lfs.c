@@ -71,14 +71,14 @@ int get_block()
 {
   union lfs_block* bitmap_block;
   unsigned int free_bank = -1;
-  int k;
-  for (k = 0; k < 5; k++) {   					//THIS CAN BE DONE WITH WHILE?
-    bitmap_block = readblock(k);
+  int bitmap_block_id;
+  for (bitmap_block_id = 0; k < 5; bitmap_block_id++) {
+    bitmap_block = readblock(bitmap_block_id);
     if(bitmap_block < 0)
     {
       return bitmap_block;
     }
-    for (size_t i = 0; i < LFS_BLOCK_SIZE; i++)			//THIS CAN BE DONE WITH WHILE?
+    for (size_t i = 0; i < LFS_BLOCK_SIZE; i++)
     {
       if(bitmap_block->data[i] < 255)  //note that 255 is the value of an unsigned byte with all bits set
       {
@@ -96,7 +96,7 @@ int get_block()
       break;
     }
     free(bitmap_block);
-    printf("GET BLOCK k: %d\n", k);
+    printf("GET BLOCK k: %d\n", bitmap_block_id);
   }
   //the right bank has been obtained, now copy the bank in, such that is can be maipulated
   unsigned char temp_byte = 0;
@@ -114,9 +114,9 @@ int get_block()
   }
   //write the new bitmap to disk, and return the number
   memcpy(&bitmap_block->data[free_bank], &temp_byte, sizeof(char));
-  writeblock(bitmap_block, k);
+  writeblock(bitmap_block, bitmap_block_id);
   free(bitmap_block);
-  return k*4096 + free_bank*8 + bit;
+  return bitmap_block_id*4096 + free_bank*8 + bit;
 }
 
 int free_block(unsigned int block)
