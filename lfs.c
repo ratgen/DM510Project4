@@ -276,38 +276,11 @@ int get_block_from_path(const char* path)
     if(block_id < 6)
     {
       //a block for name could not be found
-      return -ENOENT;
+      return block_id;
     }
   }
   //copy the path back, such that it is not modified in the function calling
   strcpy((char*) path, path_save);
-  //read in block, and its name
-  union lfs_block* check_block = readblock(block_id);
-  if(check_block < 0)
-  {
-    return check_block;
-  }
-  union lfs_block* name_block = readblock(check_block->inode.data[0]);
-  if(name_block < 0)
-  {
-    return name_block;
-  }
-  //read in the name, for comparison
-  char data[check_block->inode.name_length];
-  memcpy(&data, &name_block->data, check_block->inode.name_length);
-  printf("GET_BLOCK_PATH: name: %s, basename: %s\n", data, basename((char *) path));
-  if(strcmp(data, basename((char *) path)) == 0)
-  {
-    //block is one we are looking for
-    printf("GET_BLOCK_PATH: Found element: %s\n", basename((char *) path));
-    free(check_block);
-    free(name_block);
-    return block_id;
-  }
-  //could not find such file or dir
-  printf("GET_BLOCK_PATH: Could NOT FIND element: %s\n", basename((char *) path));
-  free(check_block);
-  free(name_block);
   return -ENOENT;
 }
 
@@ -379,7 +352,7 @@ int set_num_blocks(int block, int dif_blocks, int dif_size)
 
 
     parent_inode->inode.blocks += dif_blocks;
-    parent_inode->inode.size += dif_blocks;
+    parent_inode->inode.size += dif_size;
 
     printf("SET NUM BLOCKS: new: parent_inode->inode.blocks %d\n", parent_inode->inode.blocks);
     printf("SET NUM BLOCKS: new: parent_inode->inode.size %d\n",   parent_inode->inode.size);
