@@ -851,6 +851,10 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
   int num_blocks = (int) ceil((double) size/ (double) LFS_BLOCK_SIZE);
   //read in the inode, to write data to
   write_inode = readblock(write_inode_id);
+  if(write_inode < 0)
+  {
+    return write_inode;
+  }
 
   if(offset + size > write_inode->inode.size)
   {
@@ -858,10 +862,6 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
     write_inode->inode.size = offset + size;
   }
 
-  if(write_inode < 0)
-  {
-    return write_inode;
-  }
   for(int i = block_offset + 1; i < num_blocks + block_offset + 1; i++) //add one to offset the name data block
   {
     union lfs_block* data_block = readblock(write_inode->inode.data[i]);
