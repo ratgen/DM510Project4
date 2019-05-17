@@ -20,6 +20,7 @@ int lfs_mkdir(const char* path, mode_t mode);
 int lfs_rmdir(const char* path);
 int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi);
 int lfs_unlink(const char *path);
+int lfs_statfs(const char* path, struct statvfs*);
 
 static struct fuse_operations lfs_oper = {
 	.getattr	= lfs_getattr,
@@ -30,6 +31,7 @@ static struct fuse_operations lfs_oper = {
 	.rmdir = lfs_rmdir,
 	.open	= lfs_open,
 	.read	= lfs_read,
+  .statfs = lfs_statfs,
 	.write = lfs_write
 };
 
