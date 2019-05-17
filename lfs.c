@@ -598,12 +598,6 @@ int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi)
   {
     return parent_dir_id;
   }
-
-  int new_file_id = get_block();
-  if(new_file_id < 0)
-  {
-    return new_file_id;
-  }
   //read the parent dir block
   union lfs_block* parent_dir = readblock(parent_dir_id);
   if(parent_dir < 0)
@@ -614,6 +608,11 @@ int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi)
   if(free_slot < 0)
   {
     return free_slot;
+  }
+  int new_file_id = get_block();
+  if(new_file_id < 0)
+  {
+    return new_file_id;
   }
   //insert new file id, and write to disk
   parent_dir->inode.data[free_slot] = new_file_id;
@@ -636,7 +635,7 @@ int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi)
   //insert length of name into inode
   new_file->inode.name_length = strlen(basename((char *) path)) + 1;
 
-  unsigned short new_name_id = get_block();
+  int new_name_id = get_block();
   if(new_name_id < 0)
   {
     free(new_file);
