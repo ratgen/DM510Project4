@@ -49,9 +49,8 @@ typedef struct lfs_inode //sizeof() = LFS_BLOCK_SIZE
   unsigned short data[INODE_BLOCK_IDS]; //array of block ids can hold 232*LFS_BLOCK_SIZE = 0.24 MB
 } inode_t;
 
-typedef union lfs_block  //with union block can either be data or inode_t
+typedef union lfs_block 
 {
   inode_t inode;
   unsigned char data[LFS_BLOCK_SIZE];
-
 } lfs_block;
