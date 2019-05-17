@@ -259,22 +259,26 @@ int get_block_from_path(const char* path)
   //gets the block of the path_element in the root block
   block_id = get_name(5, path_element);
   if(block_id < 6)
-  {//path does not exist
+  {
+    //path does not exist
     return -ENOENT;
   }
   while( path_element != NULL )
-  {//split next part of path
+  {
+    //split next part of path
     path_element = strtok(NULL, "/");
     if(path_element == NULL)
     {//there is no next element, block contains the sought after block
-      break;
+      return block_id;
     }
     block_id = get_name(block_id, path_element);
     if(block_id < 6)
-    {//a block for name could not be found
+    {
+      //a block for name could not be found
       return block_id;
     }
-  }//copy the path back, such that it is not modified in the function calling
+  }
+  //copy the path back, such that it is not modified in the function calling
   strcpy((char*) path, path_save);
   return -ENOENT;
 }
