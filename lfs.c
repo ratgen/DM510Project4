@@ -604,7 +604,7 @@ int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi)
   //insert length of name into inode
   new_file->inode.name_length = strlen(basename((char *) path)) + 1;
 
-  unsigned short new_name_id = get_block();
+  int new_name_id = get_block();
   if(new_name_id < 0)
   {
     free(new_file);
