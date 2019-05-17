@@ -72,7 +72,7 @@ int get_block()
   union lfs_block* bitmap_block;
   unsigned int free_bank = -1;
   int bitmap_block_id;
-  for (bitmap_block_id = 0; k < 5; bitmap_block_id++) {
+  for (bitmap_block_id = 0; bitmap_block_id < 5; bitmap_block_id++) {
     bitmap_block = readblock(bitmap_block_id);
     if(bitmap_block < 0)
     {
@@ -89,7 +89,7 @@ int get_block()
      }
     if(free_bank != -1)
     {
-      if(k == 4)
+      if(bitmap_block == 4)
       {
         return -ENOSPC;
       }
@@ -416,9 +416,9 @@ int lfs_mkdir(const char* path, mode_t mode)
   strcpy(save_path, path);
   //get block of parent dir and read it in
   short parent_block_id = get_block_from_path(dirname(save_path));
-  if(parent_block < 0)
+  if(parent_block_id < 0)
   {
-    return parent_block;
+    return parent_block_id;
   }
   union lfs_block* parent_block = readblock(parent_block_id);
 
@@ -744,10 +744,8 @@ int lfs_read( const char *path, char *buf, size_t size, off_t offset,
 
   //find the block, to start reading from
   int block_offset = offset/LFS_BLOCK_SIZE;
-  printf("READ: start reading from block: %d\n", block_offset);
   //total number of blocks to read
   int num_blocks = (int) ceil((double) size/ (double) LFS_BLOCK_SIZE);
-  printf("READ: total number of blocks to read: %d\n", num_blocks);
 
   //read in one block at a time from the block_offset, offset by 1 extra to adjust for the name block in inode data
   for(int i = block_offset + 1; i < num_blocks + block_offset + 1; i++)
@@ -772,7 +770,6 @@ int lfs_read( const char *path, char *buf, size_t size, off_t offset,
   clock_gettime(CLOCK_REALTIME, &read_inode->inode.a_time);
   writeblock(read_inode, read_inode_id);
   free(read_inode);
-  printf("READ: offset %ld bytes\n",  offset);
   return retsize;
 }
 
