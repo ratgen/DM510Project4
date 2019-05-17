@@ -31,7 +31,6 @@ static struct fuse_operations lfs_oper = {
 	.rmdir = lfs_rmdir,
 	.open	= lfs_open,
 	.read	= lfs_read,
-  .statfs = lfs_statfs,
 	.write = lfs_write
 };
 
@@ -51,7 +50,7 @@ typedef struct lfs_inode //sizeof() = LFS_BLOCK_SIZE
   unsigned short data[INODE_BLOCK_IDS]; //array of block ids can hold 232*LFS_BLOCK_SIZE = 0.24 MB
 } inode_t;
 
-typedef union lfs_block 
+typedef union lfs_block
 {
   inode_t inode;
   unsigned char data[LFS_BLOCK_SIZE];
