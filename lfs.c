@@ -555,12 +555,7 @@ int lfs_readdir( const char *path, void *buf, fuse_fill_dir_t filler,
 int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi)
 {
   char temp[LFS_BLOCK_SIZE];
-  strcpy(temp, path);
-  int exists = get_block_from_path(path);
-  if(exists > 0)
-  {
-    return -EEXIST;
-  }
+  strcpy(temp, path); 
   int parent_dir_id = get_block_from_path(dirname(temp));
   if(parent_dir_id < 0)
   {
