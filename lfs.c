@@ -96,7 +96,6 @@ int get_block()
       break;
     }
     free(bitmap_block);
-    printf("GET BLOCK k: %d\n", bitmap_block_id);
   }
   //the right bank has been obtained, now copy the bank in, such that is can be maipulated
   unsigned char temp_byte = 0;
@@ -232,8 +231,6 @@ int get_name(unsigned int search_block_id, char* name)
       }
       free(cand_inode);
       free(name_block);
-
-      printf("GET_NAME: names did not match\n");
     }
   }
   //did not find the name in the dir
@@ -251,7 +248,6 @@ int get_block_from_path(const char* path)
   //If the path is root folder
   if(strcmp(path, "/") == 0)
   {
-    printf("%s\n", "GET_BLOCK_PATH: Returning root node");
     return 5;
   }//get the path of the first folder or file
   path_element = strtok((char *) path, "/");
@@ -285,22 +281,18 @@ int get_free_slot_dir(union lfs_block* block)
   //block pointers must pass sanity check before being comfirmed as blocks
   while(block->inode.data[free_slot] != 0 && block->inode.data[free_slot] < 20480)
   {
-    printf("FREE SLOT: content of freeslot %d: %d\n",free_slot, block->inode.data[free_slot]);
     free_slot += 1;
   }
   if(free_slot > INODE_BLOCK_IDS)
   {
-    printf("%s\n", "no more free slots");
     return -EFBIG;
   }
-  printf("FREE SLOT: returning %d\n", free_slot);
   return free_slot;
 }
 
 //updates of the number of blocks and bytes used by children
 int set_num_blocks(int block, int dif_blocks, int dif_size)
 {
-  printf("SET NUM BLOCKS: %d, difference_blocks %d, difference_size %d\n", block, dif_blocks, dif_size);
   union lfs_block* child_inode = readblock(block);
   if(child_inode < 0)
   {
@@ -321,15 +313,8 @@ int set_num_blocks(int block, int dif_blocks, int dif_size)
     {
       return root_inode;
     }
-    printf("SET NUM BLOCKS: old: root_inode->inode.blocks %d\n", root_inode->inode.blocks);
-    printf("SET NUM BLOCKS: old: root_inode->inode.size   %d\n",   root_inode->inode.size);
-
     root_inode->inode.blocks += dif_blocks;
     root_inode->inode.size += dif_size;
-
-    printf("SET NUM BLOCKS: new: root_inode->inode.blocks %d\n", root_inode->inode.blocks);
-    printf("SET NUM BLOCKS: new: root_inode->inode.size   %d\n",   root_inode->inode.size);
-
    writeblock(root_inode, 5);
    free(root_inode);
   }
@@ -340,17 +325,8 @@ int set_num_blocks(int block, int dif_blocks, int dif_size)
     {
       return parent_inode;
     }
-
-    printf("SET NUM BLOCKS: old: parent_inode->inode.blocks %d\n", parent_inode->inode.blocks);
-    printf("SET NUM BLOCKS: old: parent_inode->inode.size %d\n",   parent_inode->inode.size);
-
-
     parent_inode->inode.blocks += dif_blocks;
     parent_inode->inode.size += dif_size;
-
-    printf("SET NUM BLOCKS: new: parent_inode->inode.blocks %d\n", parent_inode->inode.blocks);
-    printf("SET NUM BLOCKS: new: parent_inode->inode.size %d\n",   parent_inode->inode.size);
-
     writeblock(parent_inode, child_inode->inode.parent);
     short parent = child_inode->inode.parent;
 
@@ -359,14 +335,12 @@ int set_num_blocks(int block, int dif_blocks, int dif_size)
     //recursivly call on parent
     set_num_blocks(parent, dif_blocks, dif_size);
   }
-  printf("%s\n", "returning from SET NUM BLOCKS");
   return 0;
 }
 
 //gets attribute of file or directory
 int lfs_getattr( const char *path, struct stat *stbuf )
 {
-	printf("getattr: (path=%s)\n", path);
 	memset(stbuf, 0, sizeof(struct stat));
   //get the block id of the requested path
   int inode_id = get_block_from_path(path);
@@ -495,7 +469,6 @@ int lfs_rmdir(const char* path)
   }
   if(rm_block->inode.blocks > 2) //the two blocks are inode and name data
   {
-    printf("number of blocks in folder %d\n", rm_block->inode.blocks);
     return -ENOTEMPTY;
   }
   set_num_blocks(rm_block_id, -2, 0);
@@ -533,7 +506,6 @@ int lfs_readdir( const char *path, void *buf, fuse_fill_dir_t filler,
   filler(buf, ".", NULL, 0);
   filler(buf, "..", NULL, 0);
 
-  printf("readdir: (path=%s)\n", path);
   int dir_block_id = get_block_from_path(path);
   if(dir_block_id < 0)
   {
@@ -554,7 +526,6 @@ int lfs_readdir( const char *path, void *buf, fuse_fill_dir_t filler,
     //Check if numbers are valid
     if(dir_block->inode.data[i] > 0 && dir_block->inode.data[i] < 20480)
     {
-      printf("READDIR: found file or folder at %d, block %d\n", i, dir_block->inode.data[i]);
       //read in the inode of the dir or file
        union lfs_block* temp_block = readblock(dir_block->inode.data[i]);
        if(temp_block < 0)
@@ -567,12 +538,9 @@ int lfs_readdir( const char *path, void *buf, fuse_fill_dir_t filler,
       {
         return name_block;
       }
-
-      printf("READDIR: name is in block: %d\n", temp_block->inode.data[0]);
       //copy the name into array to pass to filler
       char data[temp_block->inode.name_length];
       memcpy(&data, &name_block->data, temp_block->inode.name_length);
-      printf("%s\n", data);
       filler(buf, data, NULL, 0);
 
       free(temp_block);
@@ -688,7 +656,6 @@ int lfs_unlink(const char *path)
   {
     if(rm_block->inode.data[i] > 0 && rm_block->inode.data[i] < 20480)
     {
-      printf("UNLINK: freeing block: \n", rm_block->inode.data[i]);
       free_block(rm_block->inode.data[i]);
     }
     if(rm_block_parent->inode.data[i] == rm_block_id)
@@ -722,8 +689,6 @@ int lfs_read( const char *path, char *buf, size_t size, off_t offset,
 {
   //save the given offset
   int org_offset = offset;
-  printf("READ: offset is: %d\n", org_offset);
-  printf("READ: size  is: %ld\n", size);
   int retsize;
 
   //read in block of inode to read from
@@ -733,7 +698,6 @@ int lfs_read( const char *path, char *buf, size_t size, off_t offset,
   {
     return read_inode;
   }
-  printf("READ: size of file %d\n", read_inode->inode.size);
 
   if(size > read_inode->inode.size)
   {
@@ -886,7 +850,6 @@ int lfs_write( const char *path, const char *buf, size_t size, off_t offset,
   writeblock(write_inode, write_inode_id);
   //update parents, with the change in blocks used, and size
   set_num_blocks(write_inode_id, write_inode->inode.blocks - old_blocks, offset - old_size);
-  printf("WRITE returning: %ld\n", offset - old_size);
   free(write_inode);
   return (offset - old_size); //return number of bytes written
 }
@@ -897,7 +860,7 @@ int main( int argc, char *argv[] )
   //check if file exists
   if(file_system == NULL)
   {
-    printf("%s\n", "Filesystem must exist, make an empty file with the name 'file' ");
+    printf("File system must exist. Create an empty file 10 MiB in size.\n");
     return -ENOENT;
   }
   //check if fs is being open for the first time
