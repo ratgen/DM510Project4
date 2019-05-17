@@ -283,7 +283,7 @@ int get_free_slot_dir(union lfs_block* block)
   {
     free_slot += 1;
   }
-  if(free_slot+1 > INODE_BLOCK_IDS)
+  if(free_slot ==  INODE_BLOCK_IDS)
   {
     return -EFBIG;
   }
