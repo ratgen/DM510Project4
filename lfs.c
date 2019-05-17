@@ -283,7 +283,7 @@ int get_free_slot_dir(union lfs_block* block)
   {
     free_slot += 1;
   }
-  if(free_slot > INODE_BLOCK_IDS)
+  if(free_slot+1 > INODE_BLOCK_IDS)
   {
     return -EFBIG;
   }
@@ -555,7 +555,7 @@ int lfs_readdir( const char *path, void *buf, fuse_fill_dir_t filler,
 int lfs_create(const char* path, mode_t mode, struct fuse_file_info *fi)
 {
   char temp[LFS_BLOCK_SIZE];
-  strcpy(temp, path); 
+  strcpy(temp, path);
   int parent_dir_id = get_block_from_path(dirname(temp));
   if(parent_dir_id < 0)
   {
